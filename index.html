@@ -55,7 +55,9 @@ const D_PENALTY=[
   {id:104,label:"不按時回家",emoji:"🏃",points:15},
 ];
 const D_USERS=["彥誠","媽媽","老爸"];
-const DEF={points:100,log:[],bonusActions:D_BONUS,penaltyActions:D_PENALTY,baseLimitMin:30,pin:"1234",users:D_USERS,timerAccSec:0,timerRunning:false,timerStartTime:null};
+const DEF={points:100,log:[],bonusActions:D_BONUS,penaltyActions:D_PENALTY,baseLimitMin:30,pin:"1234",users:D_USERS,timerAccSec:0,timerRunning:false,timerStartTime:null,dailyStats:{date:"",earned:0,deducted:0}};
+const todayStr=()=>new Date().toLocaleDateString("zh-TW");
+const checkReset=(d)=>{const t=todayStr();if(!d.dailyStats||d.dailyStats.date!==t)return{...d,dailyStats:{date:t,earned:0,deducted:0}};return d;};
 const UKEY="kt_user_v1";
 const fmt=(s)=>{const a=Math.abs(Math.round(s));return `${String(Math.floor(a/60)).padStart(2,"0")}:${String(a%60).padStart(2,"0")}`;};
 const getLiveSec=(sd)=>{const base=sd?.timerAccSec||0;if(!sd?.timerRunning||!sd?.timerStartTime)return base;return base+Math.floor((Date.now()-new Date(sd.timerStartTime).getTime())/1000);};
@@ -99,13 +101,13 @@ function App(){
   const[,tick]=useState(0);
   const refs=useRef({});
 
-  const loadSD=useCallback(async()=>{const d=await store.get();if(d){setSD(d);return d;}return null;},[]);
+  const loadSD=useCallback(async()=>{const d=await store.get();if(d){const cd=checkReset(d);if(cd!==d)await store.set(cd);setSD(cd);return cd;}return null;},[]);
   const saveSD=useCallback(async(nd)=>{setSD(nd);setSaving(true);await store.set(nd);setSaving(false);},[]);
 
   useEffect(()=>{
     store.get().then(d=>{
-      if(!d){store.set({...DEF}).then(()=>setSD({...DEF}));setSD({...DEF});}
-      else{setSD(d);setLimitInput(d.baseLimitMin??30);}
+      if(!d){const init=checkReset({...DEF});store.set(init).then(()=>setSD(init));setSD(init);}
+      else{const cd=checkReset(d);if(cd!==d)store.set(cd);setSD(cd);setLimitInput(cd.baseLimitMin??30);}
       setLoading(false);
       setScreen((localStorage.getItem(UKEY)||null)?"kid":"choose_user");
     }).catch(()=>{setFbError(true);setLoading(false);});
@@ -120,7 +122,9 @@ function App(){
     const op=data.points||0,np=Math.max(0,op+delta);
     const ol=getLevel(op),nl=getLevel(np);
     const e={id:Date.now(),time:new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"}),emoji,label,delta,user:curUser||"未知"};
-    await saveSD({...data,points:np,log:[e,...(data.log||[])].slice(0,50)});
+    const t=todayStr();const ds=data.dailyStats?.date===t?data.dailyStats:{date:t,earned:0,deducted:0};
+    const nds={date:t,earned:ds.earned+(delta>0?delta:0),deducted:ds.deducted+(delta<0?Math.abs(delta):0)};
+    await saveSD({...data,points:np,log:[e,...(data.log||[])].slice(0,50),dailyStats:nds});
     setFlash(delta>0?"#10B981":"#EF4444");setFloatAnim({text:delta>0?`+${delta}`:`${delta}`,color:delta>0?"#10B981":"#EF4444"});
     setTimeout(()=>setFlash(null),400);setTimeout(()=>setFloatAnim(null),900);
     if(nl.min>ol.min)setTimeout(()=>{setLvUp(nl);setTimeout(()=>setLvUp(null),3200);},600);
@@ -207,6 +211,25 @@ function App(){
             </div>
           </div>
         </div>
+        {/* Daily Stats */}
+        {(()=>{const ds=data.dailyStats?.date===todayStr()?data.dailyStats:{date:"",earned:0,deducted:0};const net=ds.earned-ds.deducted;return(
+        <div style={{background:"white",borderRadius:20,padding:"14px 16px",marginBottom:14,boxShadow:"0 2px 12px rgba(0,0,0,.06)",border:"1.5px solid #EDE9FE"}}>
+          <p style={{margin:"0 0 10px",fontWeight:700,color:"#4C1D95",fontSize:13}}>📊 今日積分統計</p>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,textAlign:"center"}}>
+            <div style={{background:"#F0FDF4",borderRadius:12,padding:"10px 6px"}}>
+              <div style={{fontSize:22,fontWeight:900,color:"#10B981"}}>+{ds.earned}</div>
+              <div style={{fontSize:11,color:"#6B7280",marginTop:2}}>今日加分</div>
+            </div>
+            <div style={{background:"#FEF2F2",borderRadius:12,padding:"10px 6px"}}>
+              <div style={{fontSize:22,fontWeight:900,color:"#EF4444"}}>-{ds.deducted}</div>
+              <div style={{fontSize:11,color:"#6B7280",marginTop:2}}>今日扣分</div>
+            </div>
+            <div style={{background:net>=0?"#F0EEFF":"#FFF7ED",borderRadius:12,padding:"10px 6px"}}>
+              <div style={{fontSize:22,fontWeight:900,color:net>=0?"#8B5CF6":"#F97316"}}>{net>=0?"+":""}{net}</div>
+              <div style={{fontSize:11,color:"#6B7280",marginTop:2}}>今日淨分</div>
+            </div>
+          </div>
+        </div>);})()}
         <div style={{marginBottom:14}}><p style={{margin:"0 0 10px",fontWeight:800,color:"#065F46",fontSize:15}}>💚 做好事！點我加分</p><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>{(data.bonusActions||[]).map(a=>(<button key={a.id} onClick={()=>doPoint(a.points,a.emoji,a.label,data)} style={{background:"white",border:"2px solid #D1FAE5",borderRadius:18,padding:"12px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,textAlign:"left",boxShadow:"0 2px 8px rgba(16,185,129,.1)"}}><span style={{fontSize:28}}>{a.emoji}</span><div><p style={{margin:0,fontSize:13,fontWeight:700,color:"#065F46"}}>{a.label}</p><p style={{margin:0,fontSize:12,color:"#10B981",fontWeight:800}}>+{a.points} 分</p></div></button>))}</div></div>
         <div style={{marginBottom:14}}><p style={{margin:"0 0 10px",fontWeight:800,color:"#991B1B",fontSize:15}}>❤️‍🔥 做壞事就扣分喔！</p><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>{(data.penaltyActions||[]).map(a=>(<button key={a.id} onClick={()=>setConfirm(a)} style={{background:"white",border:"2px solid #FEE2E2",borderRadius:18,padding:"12px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,textAlign:"left",boxShadow:"0 2px 8px rgba(239,68,68,.08)"}}><span style={{fontSize:28}}>{a.emoji}</span><div><p style={{margin:0,fontSize:13,fontWeight:700,color:"#991B1B"}}>{a.label}</p><p style={{margin:0,fontSize:12,color:"#EF4444",fontWeight:800}}>-{a.points} 分</p></div></button>))}</div></div>
         {(data.log||[]).length>0&&(<div style={{background:"white",borderRadius:20,padding:"14px",border:"1px solid #F3F4F6"}}><p style={{margin:"0 0 8px",fontWeight:700,color:"#374151",fontSize:13}}>📝 最近記錄</p>{(data.log||[]).slice(0,5).map(l=>(<div key={l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid #F9FAFB"}}><span style={{fontSize:15}}>{l.emoji}</span><div style={{flex:1}}><span style={{fontSize:12,color:"#6B7280"}}>{l.label}</span>{l.user&&<span style={{fontSize:11,color:"#A78BFA",marginLeft:4}}>· {l.user}</span>}</div><span style={{fontSize:11,color:"#E5E7EB",marginRight:4}}>{l.time}</span><span style={{fontWeight:700,fontSize:12,color:l.delta>0?"#10B981":"#EF4444"}}>{l.delta>0?"+":""}{l.delta}</span></div>))}</div>)}
