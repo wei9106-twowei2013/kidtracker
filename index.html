@@ -55,9 +55,23 @@ const D_PENALTY=[
   {id:104,label:"不按時回家",emoji:"🏃",points:15},
 ];
 const D_USERS=["彥誠","媽媽","老爸"];
-const DEF={points:100,log:[],bonusActions:D_BONUS,penaltyActions:D_PENALTY,baseLimitMin:30,pin:"1234",users:D_USERS,timerAccSec:0,timerRunning:false,timerStartTime:null,dailyStats:{date:"",earned:0,deducted:0}};
+const DEF={points:0,bonusPoints:0,log:[],bonusActions:D_BONUS,penaltyActions:D_PENALTY,baseLimitMin:30,pin:"1234",users:D_USERS,timerAccSec:0,timerRunning:false,timerStartTime:null,dailyStats:{date:"",earned:0,deducted:0},lastResetDate:""};
 const todayStr=()=>new Date().toLocaleDateString("zh-TW");
-const checkReset=(d)=>{const t=todayStr();if(!d.dailyStats||d.dailyStats.date!==t)return{...d,dailyStats:{date:t,earned:0,deducted:0}};return d;};
+const checkReset=(d)=>{
+  const t=todayStr();
+  if((d.lastResetDate||"")!==t){
+    return{...d,
+      bonusPoints:d.points||0,   // 今日積分 → 明日獎勵
+      points:0,                   // 今日重新從 0 開始
+      timerAccSec:0,
+      timerRunning:false,
+      timerStartTime:null,
+      dailyStats:{date:t,earned:0,deducted:0},
+      lastResetDate:t,
+    };
+  }
+  return d;
+};
 const UKEY="kt_user_v1";
 const fmt=(s)=>{const a=Math.abs(Math.round(s));return `${String(Math.floor(a/60)).padStart(2,"0")}:${String(a%60).padStart(2,"0")}`;};
 const getLiveSec=(sd)=>{const base=sd?.timerAccSec||0;if(!sd?.timerRunning||!sd?.timerStartTime)return base;return base+Math.floor((Date.now()-new Date(sd.timerStartTime).getTime())/1000);};
@@ -139,11 +153,13 @@ function App(){
 
   const data=sd||DEF;
   const sts=getLiveSec(data);
-  const pts=data.points||0;
-  const lv=getLevel(pts);
+  const pts=data.points||0;               // 今日累積積分
+  const bonusPts=data.bonusPoints||0;     // 昨日積分 → 今日螢幕獎勵
+  const lv=getLevel(pts);                 // 今日等級（決定明日獎勵）
+  const bonusLv=getLevel(bonusPts);       // 昨日等級（決定今日獎勵）
   const li=LEVELS.findIndex(l=>l.min===lv.min);
   const nlv=LEVELS[li+1];
-  const em=lv.extraMin;
+  const em=bonusLv.extraMin;              // 今日實際獎勵分鐘（來自昨日）
   const els=((data.baseLimitMin||30)+em)*60;
   const over=sts>=els;
   const rem=Math.max(0,els-sts);
@@ -191,20 +207,26 @@ function App(){
           <h1 style={{margin:0,color:"#4C1D95",fontSize:19,fontWeight:800}}>⚙️ 家長設定</h1>
           {saving&&<span style={{fontSize:12,color:"#A78BFA"}}>同步中…</span>}
         </div>
-        <PCard title="📊 目前狀態"><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,textAlign:"center"}}>{[{val:pts,label:"積分",color:lv.color},{val:`${lv.emoji} ${lv.name}`,label:"等級",color:"#10B981"},{val:`+${em}分鐘`,label:"等級獎勵",color:"#3B82F6"}].map(({val,label,color})=>(<div key={label} style={{background:"#F9FAFB",borderRadius:14,padding:"10px 6px"}}><div style={{fontSize:20,fontWeight:900,color}}>{val}</div><div style={{fontSize:11,color:"#9CA3AF"}}>{label}</div></div>))}</div></PCard>
+        <PCard title="📊 目前狀態">
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,textAlign:"center"}}>
+            <div style={{background:"#F5F3FF",borderRadius:14,padding:"10px 6px"}}><div style={{fontSize:22,fontWeight:900,color:lv.color}}>{pts}</div><div style={{fontSize:11,color:"#9CA3AF"}}>今日累積積分</div></div>
+            <div style={{background:"#EFF6FF",borderRadius:14,padding:"10px 6px"}}><div style={{fontSize:22,fontWeight:900,color:"#3B82F6"}}>{bonusPts}分→+{em}分鐘</div><div style={{fontSize:11,color:"#9CA3AF"}}>昨日積分→今日獎勵</div></div>
+          </div>
+          <p style={{color:"#9CA3AF",fontSize:11,margin:"10px 0 0",textAlign:"center"}}>今日積分會在明天凌晨自動結算為螢幕獎勵</p>
+        </PCard>
         <PCard title="🏆 積分達標獎勵">{LEVELS.map((l,i)=>(<div key={l.min} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:i<LEVELS.length-1?"1px solid #F9FAFB":"none",background:lv.min===l.min?"#F5F3FF":"transparent",borderRadius:lv.min===l.min?10:0,paddingLeft:lv.min===l.min?8:0}}><span style={{fontSize:18}}>{l.emoji}</span><span style={{flex:1,fontWeight:lv.min===l.min?700:400,color:pts>=l.min?"#374151":"#D1D5DB",fontSize:13}}>{l.name}{lv.min===l.min?" ◀ 目前":""}</span><span style={{fontSize:12,color:pts>=l.min?"#8B5CF6":"#D1D5DB"}}>{l.min===0?"起始":`${l.min}分`}</span>{l.extraMin>0&&<span style={{color:pts>=l.min?"#10B981":"#D1D5DB",fontWeight:700,fontSize:13,marginLeft:4}}>+{l.extraMin}分鐘</span>}</div>))}</PCard>
         <PCard title="📺 每日螢幕時間基本上限"><div style={{display:"flex",alignItems:"center",gap:8}}><input type="number" min={5} max={180} value={limitInput} onChange={e=>setLimitInput(+e.target.value)} style={{...SI.inp,width:70}}/><span style={{color:"#6B7280"}}>分鐘</span><button style={SI.pBtn} onClick={()=>saveSD({...data,baseLimitMin:limitInput})}>儲存</button></div><p style={{color:"#9CA3AF",fontSize:12,margin:"6px 0 0"}}>目前：{data.baseLimitMin||30}分 + 獎勵{em}分 = <b>{(data.baseLimitMin||30)+em} 分鐘</b></p></PCard>
         <PCard title="✅ 加分項目">{(data.bonusActions||[]).map(a=>(<div key={a.id} style={SI.row}><span style={{fontSize:18}}>{a.emoji}</span><span style={{flex:1,fontWeight:600,color:"#065F46",fontSize:13}}>{a.label}</span><span style={{color:"#10B981",fontWeight:700,fontSize:13,marginRight:6}}>+{a.points}</span><button onClick={()=>setEditAction({...a,type:"bonus"})} style={{...SI.del,background:"#EFF6FF",color:"#3B82F6",border:"1px solid #BFDBFE",marginRight:4}}>編輯</button><button onClick={()=>saveSD({...data,bonusActions:(data.bonusActions||[]).filter(x=>x.id!==a.id)})} style={SI.del}>刪除</button></div>))}{addB?(<div style={{marginTop:10}}><div style={{display:"flex",gap:6,marginBottom:8}}><input placeholder="🎯" value={newB.emoji} onChange={e=>setNewB(n=>({...n,emoji:e.target.value}))} style={{...SI.inp,width:46,textAlign:"center"}}/><input placeholder="名稱" value={newB.label} onChange={e=>setNewB(n=>({...n,label:e.target.value}))} style={{...SI.inp,flex:1}}/><input type="number" placeholder="分" value={newB.points} onChange={e=>setNewB(n=>({...n,points:+e.target.value}))} style={{...SI.inp,width:54}}/></div><div style={{display:"flex",gap:8}}><button style={SI.pBtn} onClick={()=>{if(newB.label){saveSD({...data,bonusActions:[...(data.bonusActions||[]),{...newB,id:Date.now()}]});setNewB({label:"",emoji:"✨",points:10});setAddB(false);}}}>新增</button><button style={{...SI.pBtn,background:"#9CA3AF"}} onClick={()=>setAddB(false)}>取消</button></div></div>):(<button style={{...SI.pBtn,width:"100%",marginTop:10}} onClick={()=>setAddB(true)}>+ 新增加分項目</button>)}</PCard>
         <PCard title="❌ 扣分項目">{(data.penaltyActions||[]).map(a=>(<div key={a.id} style={SI.row}><span style={{fontSize:18}}>{a.emoji}</span><span style={{flex:1,fontWeight:600,color:"#991B1B",fontSize:13}}>{a.label}</span><span style={{color:"#EF4444",fontWeight:700,fontSize:13,marginRight:6}}>-{a.points}</span><button onClick={()=>setEditAction({...a,type:"penalty"})} style={{...SI.del,background:"#EFF6FF",color:"#3B82F6",border:"1px solid #BFDBFE",marginRight:4}}>編輯</button><button onClick={()=>saveSD({...data,penaltyActions:(data.penaltyActions||[]).filter(x=>x.id!==a.id)})} style={SI.del}>刪除</button></div>))}{addP?(<div style={{marginTop:10}}><div style={{display:"flex",gap:6,marginBottom:8}}><input placeholder="💢" value={newP.emoji} onChange={e=>setNewP(n=>({...n,emoji:e.target.value}))} style={{...SI.inp,width:46,textAlign:"center"}}/><input placeholder="名稱" value={newP.label} onChange={e=>setNewP(n=>({...n,label:e.target.value}))} style={{...SI.inp,flex:1}}/><input type="number" placeholder="分" value={newP.points} onChange={e=>setNewP(n=>({...n,points:+e.target.value}))} style={{...SI.inp,width:54}}/></div><div style={{display:"flex",gap:8}}><button style={{...SI.pBtn,background:"#EF4444"}} onClick={()=>{if(newP.label){saveSD({...data,penaltyActions:[...(data.penaltyActions||[]),{...newP,id:Date.now()}]});setNewP({label:"",emoji:"😤",points:15});setAddP(false);}}}>新增</button><button style={{...SI.pBtn,background:"#9CA3AF"}} onClick={()=>setAddP(false)}>取消</button></div></div>):(<button style={{...SI.pBtn,background:"#EF4444",width:"100%",marginTop:10}} onClick={()=>setAddP(true)}>+ 新增扣分項目</button>)}</PCard>
         <PCard title="👥 使用者名單"><p style={{color:"#9CA3AF",fontSize:12,margin:"0 0 10px"}}>所有人開啟同一網址，選各自名字即可加減分。</p>{(data.users||D_USERS).map((u,i)=>(<div key={i} style={SI.row}><span>👤</span><span style={{flex:1,fontWeight:500,color:"#374151",fontSize:14}}>{u}</span>{(data.users||D_USERS).length>1&&(<button onClick={()=>saveSD({...data,users:(data.users||D_USERS).filter((_,j)=>j!==i)})} style={SI.del}>移除</button>)}</div>))}<div style={{display:"flex",gap:8,marginTop:10}}><input placeholder="新增使用者" value={uInput} onChange={e=>setUInput(e.target.value)} style={{...SI.inp,flex:1}}/><button style={SI.pBtn} onClick={()=>{const n=uInput.trim();if(n&&!(data.users||D_USERS).includes(n)){saveSD({...data,users:[...(data.users||D_USERS),n]});setUInput("");}}}>新增</button></div></PCard>
         <PCard title="🔐 修改家長密碼"><div style={{display:"flex",gap:8}}><input type="password" placeholder="新密碼（4位數字）" maxLength={4} value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} style={{...SI.inp,flex:1}}/><button style={SI.pBtn} onClick={()=>{if(newPin.length===4){saveSD({...data,pin:newPin});setNewPin("");alert("✅ 密碼已更新！");}else alert("請輸入4位數字");}}>儲存</button></div><p style={{color:"#9CA3AF",fontSize:12,margin:"6px 0 0"}}>預設密碼：1234</p></PCard>
-        <PCard title="🔄 重設選項"><div style={{display:"flex",flexWrap:"wrap",gap:8}}><button style={{...SI.pBtn,background:"#F59E0B"}} onClick={()=>{if(window.confirm("確定重設今日螢幕時間嗎？"))saveSD({...data,timerAccSec:0,timerRunning:false,timerStartTime:null});}}>重設今日時間</button><button style={{...SI.pBtn,background:"#10B981"}} onClick={()=>{if(window.confirm("確定重設今日統計（加分/扣分歸零）嗎？"))saveSD({...data,dailyStats:{date:todayStr(),earned:0,deducted:0}});}}>重設今日統計</button><button style={{...SI.pBtn,background:"#6B7280"}} onClick={()=>{if(window.confirm("確定重設積分為 100 分嗎？"))saveSD({...data,points:100});}}>重設積分</button><button style={{...SI.pBtn,background:"#9CA3AF"}} onClick={()=>{if(window.confirm("確定清除所有記錄嗎？"))saveSD({...data,log:[]});}}>清除記錄</button></div></PCard>
+        <PCard title="🔄 重設選項"><div style={{display:"flex",flexWrap:"wrap",gap:8}}><button style={{...SI.pBtn,background:"#F59E0B"}} onClick={()=>{if(window.confirm("確定重設今日螢幕時間嗎？"))saveSD({...data,timerAccSec:0,timerRunning:false,timerStartTime:null});}}>重設今日時間</button><button style={{...SI.pBtn,background:"#10B981"}} onClick={()=>{if(window.confirm("確定重設今日統計（加分/扣分歸零）嗎？"))saveSD({...data,dailyStats:{date:todayStr(),earned:0,deducted:0}});}}>重設今日統計</button><button style={{...SI.pBtn,background:"#6B7280"}} onClick={()=>{if(window.confirm("確定重設今日積分為 0 嗎？"))saveSD({...data,points:0});}}>重設今日積分</button><button style={{...SI.pBtn,background:"#9CA3AF"}} onClick={()=>{if(window.confirm("確定清除所有記錄嗎？"))saveSD({...data,log:[]});}}>清除記錄</button></div></PCard>
         {(data.log||[]).length>0&&(<PCard title="📋 完整活動記錄">{(data.log||[]).map(l=>(<div key={l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F3F4F6"}}><span style={{fontSize:16}}>{l.emoji}</span><div style={{flex:1}}><span style={{fontSize:13,color:"#374151"}}>{l.label}</span>{l.user&&<span style={{fontSize:11,color:"#A78BFA",marginLeft:5}}>by {l.user}</span>}</div><span style={{fontSize:11,color:"#D1D5DB",marginRight:4}}>{l.time}</span><span style={{fontWeight:700,fontSize:12,color:l.delta>0?"#10B981":"#EF4444"}}>{l.delta>0?"+":""}{l.delta}</span></div>))}</PCard>)}
       </div>
     </div>
   );
 
-  const mot=pts<30?`💪 再 ${30-pts} 分就解鎖 +2 分鐘電視時間！`:pts<80?`⚔️ 再 ${80-pts} 分升勇士，累積 +4 分鐘！`:pts<150?`🛡️ 再 ${150-pts} 分升英雄，累積 +6 分鐘！`:pts<250?`🏹 再 ${250-pts} 分成傳說，累積 +8 分鐘！`:pts<400?`🌟 再 ${400-pts} 分成神話，最多 +10 分鐘！`:"👑 你已是神話等級的英雄！";
+  const mot=pts<30?`💪 再 ${30-pts} 分，明天就有 +2 分鐘獎勵！`:pts<80?`⚔️ 再 ${80-pts} 分，明天升勇士 +4 分鐘！`:pts<150?`🛡️ 再 ${150-pts} 分，明天升英雄 +6 分鐘！`:pts<250?`🏹 再 ${250-pts} 分，明天升傳說 +8 分鐘！`:pts<400?`🌟 再 ${400-pts} 分，明天神話 +10 分鐘！`:"👑 神話！明天最高獎勵 +10 分鐘！";
 
   return(
     <div style={{minHeight:"100vh",position:"relative",overflow:"hidden",background:"linear-gradient(160deg,#F0EEFF 0%,#E8FFF5 55%,#EFF6FF 100%)"}}>
@@ -219,11 +241,11 @@ function App(){
           <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}><button onClick={()=>setScreen("choose_user")} style={{background:"white",border:"2px solid #DDD6FE",borderRadius:10,padding:"5px 10px",cursor:"pointer",color:"#7C3AED",fontWeight:700,fontSize:11}}>👤 {curUser||"？"}</button><button onClick={()=>setScreen("pin")} style={{background:"white",border:"2px solid #DDD6FE",borderRadius:10,padding:"5px 10px",cursor:"pointer",color:"#7C3AED",fontWeight:600,fontSize:11}}>🔒 家長</button></div>
         </div>
         <div style={{background:"white",borderRadius:24,padding:"20px 18px",marginBottom:14,boxShadow:"0 4px 24px rgba(139,92,246,.16)",border:"2px solid #EDE9FE",textAlign:"center"}}>
-          <p style={{margin:"0 0 2px",color:"#8B5CF6",fontSize:11,fontWeight:700,letterSpacing:1.5}}>✨ 我 的 積 分 ✨</p>
+          <p style={{margin:"0 0 2px",color:"#8B5CF6",fontSize:11,fontWeight:700,letterSpacing:1.5}}>✨ 今日累積積分（影響明天）✨</p>
           <div style={{fontSize:90,fontWeight:900,lineHeight:1.1,color:lv.color,textShadow:`0 0 28px ${lv.color}55,0 0 56px ${lv.color}22`,animation:"breathe 3s ease-in-out infinite"}}>{pts}</div>
           <p style={{margin:"4px 0 0",color:"#9CA3AF",fontSize:12}}>{mot}</p>
           {nlv&&(()=>{const p=Math.min(1,(pts-lv.min)/(nlv.min-lv.min));return(<div style={{marginTop:14}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#C4B5FD",marginBottom:4}}><span>{lv.emoji} {lv.name}</span><span>{nlv.emoji} {nlv.name}（再 <b style={{color:nlv.color}}>{nlv.min-pts}</b> 分）</span></div><div style={{height:8,background:"#F3F4F6",borderRadius:999}}><div style={{height:"100%",borderRadius:999,transition:"width .6s ease",width:`${p*100}%`,background:`linear-gradient(90deg,${lv.color},${nlv.color})`}}/></div></div>)})()}
-          {em>0&&(<div style={{marginTop:12,background:"linear-gradient(90deg,#F0FDF4,#ECFDF5)",borderRadius:14,padding:"10px 14px",border:"1.5px solid #BBF7D0",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:22}}>🎮</span><div style={{textAlign:"left"}}><p style={{margin:0,fontSize:12,fontWeight:800,color:"#065F46"}}>積分獎勵已解鎖！</p><p style={{margin:0,fontSize:11,color:"#10B981"}}>今日可額外使用 <b>{em} 分鐘</b>電視 / 電玩時間</p></div></div>)}
+          {lv.extraMin>0&&(<div style={{marginTop:12,background:"linear-gradient(90deg,#EFF6FF,#DBEAFE)",borderRadius:14,padding:"10px 14px",border:"1.5px solid #BFDBFE",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:22}}>🌙</span><div style={{textAlign:"left"}}><p style={{margin:0,fontSize:12,fontWeight:800,color:"#1D4ED8"}}>明天可獲得獎勵！</p><p style={{margin:0,fontSize:11,color:"#3B82F6"}}>以今日表現，明天額外獲得 <b>{lv.extraMin} 分鐘</b>電視 / 電玩時間</p></div></div>)}
         </div>
         <div style={{background:"white",borderRadius:24,padding:"16px 14px",marginBottom:14,boxShadow:"0 4px 16px rgba(0,0,0,.06)",border:`2px solid ${over?"#FEE2E2":"#EDE9FE"}`}}>
           <p style={{margin:"0 0 12px",fontWeight:700,color:over?"#EF4444":"#374151",fontSize:14,textAlign:"center"}}>{over?"⛔ 今日螢幕時間已到上限！":"📺 今日螢幕時間"}</p>
@@ -231,7 +253,7 @@ function App(){
             <div style={{position:"relative",flexShrink:0,width:130,height:130}}><Ring pct={over?0:rem/els} color={rc}/><div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:21,fontWeight:900,color:rc,letterSpacing:-1}}>{over?"00:00":fmt(rem)}</span><span style={{fontSize:10,color:"#9CA3AF",fontWeight:600}}>{over?"🚫 時間到！":"⏱ 剩餘"}</span></div></div>
             <div style={{flex:1}}>
               <div style={{marginBottom:6}}><p style={{margin:0,fontSize:11,color:"#9CA3AF"}}>今日已使用</p><p style={{margin:0,fontSize:19,fontWeight:800,color:"#374151"}}>{fmt(sts)}</p></div>
-              <div style={{marginBottom:10,background:"#F5F3FF",borderRadius:10,padding:"6px 10px"}}><p style={{margin:0,fontSize:11,color:"#8B5CF6",fontWeight:600}}>基本 {data.baseLimitMin||30}分{em>0&&<span style={{color:"#10B981"}}> + 獎勵 {em}分</span>} = <b>{(data.baseLimitMin||30)+em} 分鐘</b></p></div>
+              <div style={{marginBottom:10,background:"#F5F3FF",borderRadius:10,padding:"6px 10px"}}><p style={{margin:0,fontSize:11,color:"#8B5CF6",fontWeight:600}}>基本 {data.baseLimitMin||30}分{em>0?<span style={{color:"#10B981"}}> + 昨日獎勵 {em}分</span>:<span style={{color:"#9CA3AF"}}> + 今日努力賺明天獎勵</span>} = <b>{(data.baseLimitMin||30)+em} 分鐘</b></p></div>
               <button disabled={over} onClick={()=>!over&&(data.timerRunning?stopT(data):startT(data))} style={{width:"100%",padding:11,borderRadius:14,border:"none",fontSize:14,fontWeight:800,cursor:over?"not-allowed":"pointer",transition:"all .2s",background:over?"#F3F4F6":data.timerRunning?"#FEF2F2":"#8B5CF6",color:over?"#9CA3AF":data.timerRunning?"#EF4444":"white",boxShadow:(!over&&!data.timerRunning)?"0 4px 14px rgba(139,92,246,.35)":"none"}}>{over?"⛔ 今日已到上限":data.timerRunning?"⏸ 暫停":"▶ 開始看電視 / 玩遊戲"}</button>
             </div>
           </div>
