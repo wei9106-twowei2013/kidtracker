@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>彥誠的積分冒險 🎮</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,-apple-system,sans-serif;background:#F0EEFF;}
+button,input{font-family:inherit;}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+@keyframes flashFade{0%{opacity:1}100%{opacity:0}}
+@keyframes floatUp{0%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}100%{opacity:0;transform:translateX(-50%) translateY(-80px) scale(1.5)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-8px)}50%{transform:translateX(8px)}}
+@keyframes scaleIn{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
+button:active{transform:scale(0.92)!important;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+const FB_KEY="AIzaSyD6t7woI7dDhIU-Ta9bQJyIUcdyNOHMkV8";
+const FB_URL="https://firestore.googleapis.com/v1/projects/twowei-progresstrack/databases/(default)/documents/kidtracker/main";
+const store={
+  async get(){try{const r=await fetch(`${FB_URL}?key=${FB_KEY}`);if(r.status===404)return null;const d=await r.json();const raw=d.fields?.data?.stringValue;return raw?JSON.parse(raw):null;}catch{return null;}},
+  async set(data){try{await fetch(`${FB_URL}?key=${FB_KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({fields:{data:{stringValue:JSON.stringify(data)}}})});}catch{}}
+};
+
+const LEVELS=[
+  {min:0,  name:"新兵",  emoji:"🪖",color:"#94A3B8",extraMin:0 },
+  {min:30, name:"冒險者",emoji:"⚔️", color:"#F59E0B",extraMin:2 },
+  {min:80, name:"勇士",  emoji:"🛡️", color:"#10B981",extraMin:4 },
+  {min:150,name:"英雄",  emoji:"🏹", color:"#3B82F6",extraMin:6 },
+  {min:250,name:"傳說",  emoji:"🌟", color:"#8B5CF6",extraMin:8 },
+  {min:400,name:"神話",  emoji:"👑", color:"#F97316",extraMin:10},
+];
+const getLevel=(pts)=>[...LEVELS].reverse().find(l=>pts>=l.min)||LEVELS[0];
+
+const D_BONUS=[
+  {id:1,label:"練鋼琴",   emoji:"🎹",points:15},
+  {id:2,label:"洗碗",     emoji:"🍽️",points:10},
+  {id:3,label:"掃地拖地", emoji:"🧹",points:8 },
+  {id:4,label:"做功課",   emoji:"📚",points:12},
+  {id:5,label:"幫忙買東西",emoji:"🛒",points:5 },
+];
+const D_PENALTY=[
+  {id:101,label:"偷看手機",  emoji:"📱",points:15},
+  {id:102,label:"超時上網",  emoji:"💻",points:20},
+  {id:103,label:"說謊",      emoji:"🤥",points:25},
+  {id:104,label:"不按時回家",emoji:"🏃",points:15},
+];
+const D_USERS=["彥誠","媽媽","老爸"];
+const DEF={points:100,log:[],bonusActions:D_BONUS,penaltyActions:D_PENALTY,baseLimitMin:30,pin:"1234",users:D_USERS,timerAccSec:0,timerRunning:false,timerStartTime:null};
+const UKEY="kt_user_v1";
+const fmt=(s)=>{const a=Math.abs(Math.round(s));return `${String(Math.floor(a/60)).padStart(2,"0")}:${String(a%60).padStart(2,"0")}`;};
+const getLiveSec=(sd)=>{const base=sd?.timerAccSec||0;if(!sd?.timerRunning||!sd?.timerStartTime)return base;return base+Math.floor((Date.now()-new Date(sd.timerStartTime).getTime())/1000);};
+const STARS=Array.from({length:14},(_,i)=>({id:i,size:3+(i*3.7%6),opacity:.08+(i*.013%.14),top:i*13.7%100,left:i*27.3%100}));
+
+function Ring({pct,size=130,sw=11,color="#8B5CF6",track="#F0EBF8"}){
+  const r=(size-sw)/2,c=2*Math.PI*r;
+  return(<svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
+    <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={track} strokeWidth={sw}/>
+    <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={sw} strokeDasharray={c} strokeDashoffset={c*(1-Math.max(0,Math.min(1,pct)))} strokeLinecap="round" style={{transition:"stroke-dashoffset 1s linear,stroke .3s"}}/>
+  </svg>);
+}
+function PCard({title,children}){return(<div style={{background:"white",borderRadius:20,padding:"16px 14px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.05)"}}><p style={{margin:"0 0 12px",fontWeight:700,color:"#374151",fontSize:14}}>{title}</p>{children}</div>);}
+const SI={
+  pBtn:{background:"#8B5CF6",color:"white",border:"none",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13,whiteSpace:"nowrap"},
+  del:{background:"#FEF2F2",color:"#EF4444",border:"1px solid #FECACA",borderRadius:8,padding:"3px 10px",cursor:"pointer",fontSize:12,fontWeight:600},
+  row:{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"1px solid #F9FAFB",fontSize:18},
+  inp:{border:"2px solid #E5E7EB",borderRadius:10,padding:"8px 10px",fontSize:14,outline:"none"},
+};
+
+function App(){
+  const[sd,setSD]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const[fbError,setFbError]=useState(false);
+  const[screen,setScreen]=useState("loading");
+  const[curUser,setCurUser]=useState(()=>{try{return localStorage.getItem(UKEY)||null;}catch{return null;}});
+  const[flash,setFlash]=useState(null);
+  const[floatAnim,setFloatAnim]=useState(null);
+  const[lvUp,setLvUp]=useState(null);
+  const[confirm,setConfirm]=useState(null);
+  const[pinInput,setPinInput]=useState("");
+  const[pinError,setPinError]=useState(false);
+  const[saving,setSaving]=useState(false);
+  const[limitInput,setLimitInput]=useState(30);
+  const[newPin,setNewPin]=useState("");
+  const[addB,setAddB]=useState(false);
+  const[addP,setAddP]=useState(false);
+  const[newB,setNewB]=useState({label:"",emoji:"✨",points:10});
+  const[newP,setNewP]=useState({label:"",emoji:"😤",points:15});
+  const[uInput,setUInput]=useState("");
+  const[,tick]=useState(0);
+  const refs=useRef({});
+
+  const loadSD=useCallback(async()=>{const d=await store.get();if(d){setSD(d);return d;}return null;},[]);
+  const saveSD=useCallback(async(nd)=>{setSD(nd);setSaving(true);await store.set(nd);setSaving(false);},[]);
+
+  useEffect(()=>{
+    store.get().then(d=>{
+      if(!d){store.set({...DEF}).then(()=>setSD({...DEF}));setSD({...DEF});}
+      else{setSD(d);setLimitInput(d.baseLimitMin??30);}
+      setLoading(false);
+      setScreen((localStorage.getItem(UKEY)||null)?"kid":"choose_user");
+    }).catch(()=>{setFbError(true);setLoading(false);});
+    refs.current.poll=setInterval(loadSD,5000);
+    refs.current.tick=setInterval(()=>tick(n=>n+1),1000);
+    return()=>{clearInterval(refs.current.poll);clearInterval(refs.current.tick);};
+  },[]);
+
+  const selUser=(name)=>{try{localStorage.setItem(UKEY,name);}catch{}setCurUser(name);setScreen("kid");};
+
+  const doPoint=useCallback(async(delta,emoji,label,data)=>{
+    const op=data.points||0,np=Math.max(0,op+delta);
+    const ol=getLevel(op),nl=getLevel(np);
+    const e={id:Date.now(),time:new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"}),emoji,label,delta,user:curUser||"未知"};
+    await saveSD({...data,points:np,log:[e,...(data.log||[])].slice(0,50)});
+    setFlash(delta>0?"#10B981":"#EF4444");setFloatAnim({text:delta>0?`+${delta}`:`${delta}`,color:delta>0?"#10B981":"#EF4444"});
+    setTimeout(()=>setFlash(null),400);setTimeout(()=>setFloatAnim(null),900);
+    if(nl.min>ol.min)setTimeout(()=>{setLvUp(nl);setTimeout(()=>setLvUp(null),3200);},600);
+  },[curUser,saveSD]);
+
+  const startT=async(data)=>{if(data.timerRunning)return;await saveSD({...data,timerRunning:true,timerStartTime:new Date().toISOString()});};
+  const stopT=async(data)=>{if(!data.timerRunning||!data.timerStartTime)return;const e=Math.max(0,Math.floor((Date.now()-new Date(data.timerStartTime).getTime())/1000));await saveSD({...data,timerRunning:false,timerAccSec:(data.timerAccSec||0)+e,timerStartTime:null});};
+
+  const tryPin=useCallback((input)=>{if(input===(sd?.pin??"1234")){setScreen("parent");setPinInput("");}else{setPinError(true);setPinInput("");setTimeout(()=>setPinError(false),700);}},[sd?.pin]);
+  const handleDigit=useCallback((k)=>{if(k==="⌫"){setPinInput(p=>p.slice(0,-1));return;}setPinInput(prev=>{const next=(prev+k).slice(0,4);if(next.length===4)setTimeout(()=>tryPin(next),120);return next;});},[tryPin]);
+
+  const data=sd||DEF;
+  const sts=getLiveSec(data);
+  const pts=data.points||0;
+  const lv=getLevel(pts);
+  const li=LEVELS.findIndex(l=>l.min===lv.min);
+  const nlv=LEVELS[li+1];
+  const em=lv.extraMin;
+  const els=((data.baseLimitMin||30)+em)*60;
+  const over=sts>=els;
+  const rem=Math.max(0,els-sts);
+  const rc=over?"#EF4444":rem<els*.2?"#F59E0B":"#8B5CF6";
+
+  useEffect(()=>{if(sd?.timerRunning&&sts>=els)stopT(sd);},[sts]);
+
+  if(loading)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#EDE9FE,#DBEAFE)"}}><div style={{textAlign:"center"}}><div style={{fontSize:64,animation:"breathe 1.2s ease-in-out infinite"}}>⭐</div><p style={{color:"#8B5CF6",fontWeight:700,marginTop:12}}>連線到 Firebase…</p></div></div>);
+
+  if(fbError)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#FEF2F2",padding:24}}><div style={{textAlign:"center",maxWidth:320}}><div style={{fontSize:56}}>🔥</div><h2 style={{color:"#991B1B",marginBottom:8}}>Firebase 連線失敗</h2><p style={{color:"#6B7280",fontSize:14,marginBottom:16}}>請確認網路正常，再重新整理頁面。</p><button onClick={()=>window.location.reload()} style={{background:"#EF4444",color:"white",border:"none",borderRadius:12,padding:"10px 24px",cursor:"pointer",fontWeight:700,fontSize:16}}>重新整理</button></div></div>);
+
+  if(screen==="choose_user")return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#EDE9FE,#D1FAE5)",padding:20}}><div style={{background:"white",borderRadius:28,padding:"36px 24px",maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 8px 40px rgba(139,92,246,.2)"}}><div style={{fontSize:54,marginBottom:10}}>👋</div><h2 style={{margin:"0 0 4px",color:"#4C1D95",fontSize:20,fontWeight:800}}>你是誰？</h2><p style={{margin:"0 0 22px",color:"#9CA3AF",fontSize:13}}>選擇名字，記錄積分操作</p><div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>{(data.users||D_USERS).map(name=>(<button key={name} onClick={()=>selUser(name)} style={{padding:14,borderRadius:16,border:"2px solid #DDD6FE",background:"#F5F3FF",cursor:"pointer",fontWeight:700,fontSize:16,color:"#4C1D95"}}>{name}</button>))}</div><div style={{display:"flex",gap:8}}><input placeholder="輸入其他名字" value={uInput} onChange={e=>setUInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&uInput.trim()&&selUser(uInput.trim())} style={{...SI.inp,flex:1}}/><button style={SI.pBtn} onClick={()=>uInput.trim()&&selUser(uInput.trim())}>確定</button></div></div></div>);
+
+  if(screen==="pin")return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#EDE9FE,#DBEAFE)",padding:20}}><div style={{background:"white",borderRadius:28,padding:"36px 26px",maxWidth:320,width:"100%",textAlign:"center",boxShadow:"0 8px 40px rgba(139,92,246,.22)"}}><div style={{fontSize:52,marginBottom:10}}>🔐</div><h2 style={{margin:"0 0 4px",color:"#4C1D95",fontSize:20,fontWeight:800}}>家長模式</h2><p style={{margin:"0 0 22px",color:"#9CA3AF",fontSize:13}}>請輸入4位數密碼</p><div style={{display:"flex",justifyContent:"center",gap:10,marginBottom:20}}>{[0,1,2,3].map(i=>(<div key={i} style={{width:46,height:54,border:`2px solid ${pinError?"#EF4444":"#C4B5FD"}`,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"#4C1D95",background:pinError?"#FEF2F2":"#F5F3FF",animation:pinError?"shake .4s ease":"none"}}>{pinInput[i]?"●":""}</div>))}</div><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,maxWidth:216,margin:"0 auto 16px"}}>{[1,2,3,4,5,6,7,8,9,"","0","⌫"].map((k,i)=>(<button key={i} disabled={k===""} onClick={()=>k!==""&&handleDigit(String(k))} style={{padding:14,border:"2px solid #EDE9FE",borderRadius:12,fontSize:18,fontWeight:700,cursor:k===""?"default":"pointer",background:k===""?"transparent":"#F5F3FF",color:"#4C1D95",opacity:k===""?0:1,outline:"none"}}>{k}</button>))}</div><button onClick={()=>setScreen("kid")} style={{background:"none",border:"1px solid #E5E7EB",borderRadius:10,padding:"8px 20px",cursor:"pointer",color:"#9CA3AF",fontSize:14}}>← 返回</button></div></div>);
+
+  if(screen==="parent")return(
+    <div style={{minHeight:"100vh",background:"#F8F7FF"}}>
+      <div style={{maxWidth:460,margin:"0 auto",padding:"20px 14px 60px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:22}}>
+          <button onClick={()=>setScreen("kid")} style={{background:"#8B5CF6",color:"white",border:"none",borderRadius:12,padding:"9px 18px",cursor:"pointer",fontWeight:700,fontSize:14}}>← 返回</button>
+          <h1 style={{margin:0,color:"#4C1D95",fontSize:19,fontWeight:800}}>⚙️ 家長設定</h1>
+          {saving&&<span style={{fontSize:12,color:"#A78BFA"}}>同步中…</span>}
+        </div>
+        <PCard title="📊 目前狀態"><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,textAlign:"center"}}>{[{val:pts,label:"積分",color:lv.color},{val:`${lv.emoji} ${lv.name}`,label:"等級",color:"#10B981"},{val:`+${em}分`,label:"今日獎勵",color:"#3B82F6"}].map(({val,label,color})=>(<div key={label} style={{background:"#F9FAFB",borderRadius:14,padding:"10px 6px"}}><div style={{fontSize:20,fontWeight:900,color}}>{val}</div><div style={{fontSize:11,color:"#9CA3AF"}}>{label}</div></div>))}</div></PCard>
+        <PCard title="🏆 積分達標獎勵">{LEVELS.map((l,i)=>(<div key={l.min} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:i<LEVELS.length-1?"1px solid #F9FAFB":"none",background:lv.min===l.min?"#F5F3FF":"transparent",borderRadius:lv.min===l.min?10:0,paddingLeft:lv.min===l.min?8:0}}><span style={{fontSize:18}}>{l.emoji}</span><span style={{flex:1,fontWeight:lv.min===l.min?700:400,color:pts>=l.min?"#374151":"#D1D5DB",fontSize:13}}>{l.name}{lv.min===l.min?" ◀ 目前":""}</span><span style={{fontSize:12,color:pts>=l.min?"#8B5CF6":"#D1D5DB"}}>{l.min===0?"起始":`${l.min}分`}</span>{l.extraMin>0&&<span style={{color:pts>=l.min?"#10B981":"#D1D5DB",fontWeight:700,fontSize:13,marginLeft:4}}>+{l.extraMin}分鐘</span>}</div>))}</PCard>
+        <PCard title="📺 每日螢幕時間基本上限"><div style={{display:"flex",alignItems:"center",gap:8}}><input type="number" min={5} max={180} value={limitInput} onChange={e=>setLimitInput(+e.target.value)} style={{...SI.inp,width:70}}/><span style={{color:"#6B7280"}}>分鐘</span><button style={SI.pBtn} onClick={()=>saveSD({...data,baseLimitMin:limitInput})}>儲存</button></div><p style={{color:"#9CA3AF",fontSize:12,margin:"6px 0 0"}}>目前：{data.baseLimitMin||30}分 + 獎勵{em}分 = <b>{(data.baseLimitMin||30)+em} 分鐘</b></p></PCard>
+        <PCard title="✅ 加分項目">{(data.bonusActions||[]).map(a=>(<div key={a.id} style={SI.row}><span style={{fontSize:18}}>{a.emoji}</span><span style={{flex:1,fontWeight:600,color:"#065F46",fontSize:13}}>{a.label}</span><span style={{color:"#10B981",fontWeight:700,fontSize:13,marginRight:6}}>+{a.points}</span><button onClick={()=>saveSD({...data,bonusActions:(data.bonusActions||[]).filter(x=>x.id!==a.id)})} style={SI.del}>刪除</button></div>))}{addB?(<div style={{marginTop:10}}><div style={{display:"flex",gap:6,marginBottom:8}}><input placeholder="🎯" value={newB.emoji} onChange={e=>setNewB(n=>({...n,emoji:e.target.value}))} style={{...SI.inp,width:46,textAlign:"center"}}/><input placeholder="名稱" value={newB.label} onChange={e=>setNewB(n=>({...n,label:e.target.value}))} style={{...SI.inp,flex:1}}/><input type="number" placeholder="分" value={newB.points} onChange={e=>setNewB(n=>({...n,points:+e.target.value}))} style={{...SI.inp,width:54}}/></div><div style={{display:"flex",gap:8}}><button style={SI.pBtn} onClick={()=>{if(newB.label){saveSD({...data,bonusActions:[...(data.bonusActions||[]),{...newB,id:Date.now()}]});setNewB({label:"",emoji:"✨",points:10});setAddB(false);}}}>新增</button><button style={{...SI.pBtn,background:"#9CA3AF"}} onClick={()=>setAddB(false)}>取消</button></div></div>):(<button style={{...SI.pBtn,width:"100%",marginTop:10}} onClick={()=>setAddB(true)}>+ 新增加分項目</button>)}</PCard>
+        <PCard title="❌ 扣分項目">{(data.penaltyActions||[]).map(a=>(<div key={a.id} style={SI.row}><span style={{fontSize:18}}>{a.emoji}</span><span style={{flex:1,fontWeight:600,color:"#991B1B",fontSize:13}}>{a.label}</span><span style={{color:"#EF4444",fontWeight:700,fontSize:13,marginRight:6}}>-{a.points}</span><button onClick={()=>saveSD({...data,penaltyActions:(data.penaltyActions||[]).filter(x=>x.id!==a.id)})} style={SI.del}>刪除</button></div>))}{addP?(<div style={{marginTop:10}}><div style={{display:"flex",gap:6,marginBottom:8}}><input placeholder="💢" value={newP.emoji} onChange={e=>setNewP(n=>({...n,emoji:e.target.value}))} style={{...SI.inp,width:46,textAlign:"center"}}/><input placeholder="名稱" value={newP.label} onChange={e=>setNewP(n=>({...n,label:e.target.value}))} style={{...SI.inp,flex:1}}/><input type="number" placeholder="分" value={newP.points} onChange={e=>setNewP(n=>({...n,points:+e.target.value}))} style={{...SI.inp,width:54}}/></div><div style={{display:"flex",gap:8}}><button style={{...SI.pBtn,background:"#EF4444"}} onClick={()=>{if(newP.label){saveSD({...data,penaltyActions:[...(data.penaltyActions||[]),{...newP,id:Date.now()}]});setNewP({label:"",emoji:"😤",points:15});setAddP(false);}}}>新增</button><button style={{...SI.pBtn,background:"#9CA3AF"}} onClick={()=>setAddP(false)}>取消</button></div></div>):(<button style={{...SI.pBtn,background:"#EF4444",width:"100%",marginTop:10}} onClick={()=>setAddP(true)}>+ 新增扣分項目</button>)}</PCard>
+        <PCard title="👥 使用者名單"><p style={{color:"#9CA3AF",fontSize:12,margin:"0 0 10px"}}>所有人開啟同一網址，選各自名字即可加減分。</p>{(data.users||D_USERS).map((u,i)=>(<div key={i} style={SI.row}><span>👤</span><span style={{flex:1,fontWeight:500,color:"#374151",fontSize:14}}>{u}</span>{(data.users||D_USERS).length>1&&(<button onClick={()=>saveSD({...data,users:(data.users||D_USERS).filter((_,j)=>j!==i)})} style={SI.del}>移除</button>)}</div>))}<div style={{display:"flex",gap:8,marginTop:10}}><input placeholder="新增使用者" value={uInput} onChange={e=>setUInput(e.target.value)} style={{...SI.inp,flex:1}}/><button style={SI.pBtn} onClick={()=>{const n=uInput.trim();if(n&&!(data.users||D_USERS).includes(n)){saveSD({...data,users:[...(data.users||D_USERS),n]});setUInput("");}}}>新增</button></div></PCard>
+        <PCard title="🔐 修改家長密碼"><div style={{display:"flex",gap:8}}><input type="password" placeholder="新密碼（4位數字）" maxLength={4} value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} style={{...SI.inp,flex:1}}/><button style={SI.pBtn} onClick={()=>{if(newPin.length===4){saveSD({...data,pin:newPin});setNewPin("");alert("✅ 密碼已更新！");}else alert("請輸入4位數字");}}>儲存</button></div><p style={{color:"#9CA3AF",fontSize:12,margin:"6px 0 0"}}>預設密碼：1234</p></PCard>
+        <PCard title="🔄 重設選項"><div style={{display:"flex",flexWrap:"wrap",gap:8}}><button style={{...SI.pBtn,background:"#F59E0B"}} onClick={()=>{if(window.confirm("確定重設今日螢幕時間嗎？"))saveSD({...data,timerAccSec:0,timerRunning:false,timerStartTime:null});}}>重設今日時間</button><button style={{...SI.pBtn,background:"#6B7280"}} onClick={()=>{if(window.confirm("確定重設積分為 100 分嗎？"))saveSD({...data,points:100});}}>重設積分</button><button style={{...SI.pBtn,background:"#9CA3AF"}} onClick={()=>{if(window.confirm("確定清除所有記錄嗎？"))saveSD({...data,log:[]});}}>清除記錄</button></div></PCard>
+        {(data.log||[]).length>0&&(<PCard title="📋 完整活動記錄">{(data.log||[]).map(l=>(<div key={l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F3F4F6"}}><span style={{fontSize:16}}>{l.emoji}</span><div style={{flex:1}}><span style={{fontSize:13,color:"#374151"}}>{l.label}</span>{l.user&&<span style={{fontSize:11,color:"#A78BFA",marginLeft:5}}>by {l.user}</span>}</div><span style={{fontSize:11,color:"#D1D5DB",marginRight:4}}>{l.time}</span><span style={{fontWeight:700,fontSize:12,color:l.delta>0?"#10B981":"#EF4444"}}>{l.delta>0?"+":""}{l.delta}</span></div>))}</PCard>)}
+      </div>
+    </div>
+  );
+
+  const mot=pts<30?`💪 再 ${30-pts} 分就解鎖 +2 分鐘電視時間！`:pts<80?`⚔️ 再 ${80-pts} 分升勇士，累積 +4 分鐘！`:pts<150?`🛡️ 再 ${150-pts} 分升英雄，累積 +6 分鐘！`:pts<250?`🏹 再 ${250-pts} 分成傳說，累積 +8 分鐘！`:pts<400?`🌟 再 ${400-pts} 分成神話，最多 +10 分鐘！`:"👑 你已是神話等級的英雄！";
+
+  return(
+    <div style={{minHeight:"100vh",position:"relative",overflow:"hidden",background:"linear-gradient(160deg,#F0EEFF 0%,#E8FFF5 55%,#EFF6FF 100%)"}}>
+      {STARS.map(s=>(<div key={s.id} style={{position:"fixed",borderRadius:"50%",background:"#A78BFA",pointerEvents:"none",width:s.size,height:s.size,opacity:s.opacity,top:`${s.top}%`,left:`${s.left}%`}}/>))}
+      {flash&&<div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:50,background:flash+"2A",animation:"flashFade .4s ease forwards"}}/>}
+      {floatAnim&&<div style={{position:"fixed",top:"26%",left:"50%",transform:"translateX(-50%)",fontSize:46,fontWeight:900,color:floatAnim.color,zIndex:60,pointerEvents:"none",animation:"floatUp .9s ease forwards",textShadow:"0 2px 12px rgba(0,0,0,.18)"}}>{floatAnim.text}</div>}
+      {lvUp&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setLvUp(null)}><div style={{textAlign:"center",animation:"scaleIn .4s ease"}}><div style={{fontSize:90,lineHeight:1}}>{lvUp.emoji}</div><div style={{fontSize:32,fontWeight:900,color:"white",textShadow:`0 0 24px ${lvUp.color}`,marginTop:12}}>🎉 升級了！</div><div style={{fontSize:24,color:lvUp.color,fontWeight:800,marginTop:4}}>{lvUp.name}</div><div style={{fontSize:18,color:"white",marginTop:10,background:"rgba(255,255,255,.12)",borderRadius:16,padding:"10px 24px"}}>🎮 額外獲得 <b style={{color:lvUp.color}}>{lvUp.extraMin} 分鐘</b> 螢幕時間！</div><div style={{color:"rgba(255,255,255,.5)",fontSize:12,marginTop:16}}>點擊關閉</div></div></div>)}
+      {confirm&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{background:"white",borderRadius:24,padding:28,maxWidth:300,width:"100%",textAlign:"center",boxShadow:"0 8px 32px rgba(0,0,0,.22)"}}><div style={{fontSize:56,marginBottom:8}}>{confirm.emoji}</div><h3 style={{color:"#1F2937",margin:"0 0 4px",fontSize:18}}>{confirm.label}</h3><div style={{color:"#EF4444",fontSize:30,fontWeight:900,margin:"4px 0 10px"}}>-{confirm.points} 分</div><p style={{color:"#9CA3AF",fontSize:12,margin:"0 0 14px"}}>由 <b style={{color:"#8B5CF6"}}>{curUser}</b> 確認</p><div style={{display:"flex",gap:10}}><button onClick={()=>setConfirm(null)} style={{flex:1,padding:12,borderRadius:14,border:"2px solid #E5E7EB",background:"white",cursor:"pointer",fontWeight:600,color:"#6B7280",fontSize:15}}>取消</button><button onClick={()=>{doPoint(-confirm.points,confirm.emoji,confirm.label,data);setConfirm(null);}} style={{flex:1,padding:12,borderRadius:14,border:"none",background:"#EF4444",color:"white",cursor:"pointer",fontWeight:800,fontSize:15}}>確定扣分</button></div></div></div>)}
+      <div style={{maxWidth:420,margin:"0 auto",padding:"18px 14px 52px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+          <div><p style={{margin:0,color:"#8B5CF6",fontSize:11,fontWeight:600,letterSpacing:.5}}>{new Date().toLocaleDateString("zh-TW",{month:"long",day:"numeric",weekday:"short"})}{saving&&<span style={{marginLeft:6,color:"#C4B5FD"}}>同步中…</span>}</p><h1 style={{margin:0,color:"#4C1D95",fontSize:17,fontWeight:800}}>{lv.emoji} {lv.name} 的冒險日記！</h1></div>
+          <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}><button onClick={()=>setScreen("choose_user")} style={{background:"white",border:"2px solid #DDD6FE",borderRadius:10,padding:"5px 10px",cursor:"pointer",color:"#7C3AED",fontWeight:700,fontSize:11}}>👤 {curUser||"？"}</button><button onClick={()=>setScreen("pin")} style={{background:"white",border:"2px solid #DDD6FE",borderRadius:10,padding:"5px 10px",cursor:"pointer",color:"#7C3AED",fontWeight:600,fontSize:11}}>🔒 家長</button></div>
+        </div>
+        <div style={{background:"white",borderRadius:24,padding:"20px 18px",marginBottom:14,boxShadow:"0 4px 24px rgba(139,92,246,.16)",border:"2px solid #EDE9FE",textAlign:"center"}}>
+          <p style={{margin:"0 0 2px",color:"#8B5CF6",fontSize:11,fontWeight:700,letterSpacing:1.5}}>✨ 我 的 積 分 ✨</p>
+          <div style={{fontSize:90,fontWeight:900,lineHeight:1.1,color:lv.color,textShadow:`0 0 28px ${lv.color}55,0 0 56px ${lv.color}22`,animation:"breathe 3s ease-in-out infinite"}}>{pts}</div>
+          <p style={{margin:"4px 0 0",color:"#9CA3AF",fontSize:12}}>{mot}</p>
+          {nlv&&(()=>{const p=Math.min(1,(pts-lv.min)/(nlv.min-lv.min));return(<div style={{marginTop:14}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#C4B5FD",marginBottom:4}}><span>{lv.emoji} {lv.name}</span><span>{nlv.emoji} {nlv.name}（再 <b style={{color:nlv.color}}>{nlv.min-pts}</b> 分）</span></div><div style={{height:8,background:"#F3F4F6",borderRadius:999}}><div style={{height:"100%",borderRadius:999,transition:"width .6s ease",width:`${p*100}%`,background:`linear-gradient(90deg,${lv.color},${nlv.color})`}}/></div></div>)})()}
+          {em>0&&(<div style={{marginTop:12,background:"linear-gradient(90deg,#F0FDF4,#ECFDF5)",borderRadius:14,padding:"10px 14px",border:"1.5px solid #BBF7D0",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:22}}>🎮</span><div style={{textAlign:"left"}}><p style={{margin:0,fontSize:12,fontWeight:800,color:"#065F46"}}>積分獎勵已解鎖！</p><p style={{margin:0,fontSize:11,color:"#10B981"}}>今日可額外使用 <b>{em} 分鐘</b>電視 / 電玩時間</p></div></div>)}
+        </div>
+        <div style={{background:"white",borderRadius:24,padding:"16px 14px",marginBottom:14,boxShadow:"0 4px 16px rgba(0,0,0,.06)",border:`2px solid ${over?"#FEE2E2":"#EDE9FE"}`}}>
+          <p style={{margin:"0 0 12px",fontWeight:700,color:over?"#EF4444":"#374151",fontSize:14,textAlign:"center"}}>{over?"⛔ 今日螢幕時間已到上限！":"📺 今日螢幕時間"}</p>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{position:"relative",flexShrink:0,width:130,height:130}}><Ring pct={over?0:rem/els} color={rc}/><div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:21,fontWeight:900,color:rc,letterSpacing:-1}}>{over?"00:00":fmt(rem)}</span><span style={{fontSize:10,color:"#9CA3AF",fontWeight:600}}>{over?"🚫 時間到！":"⏱ 剩餘"}</span></div></div>
+            <div style={{flex:1}}>
+              <div style={{marginBottom:6}}><p style={{margin:0,fontSize:11,color:"#9CA3AF"}}>今日已使用</p><p style={{margin:0,fontSize:19,fontWeight:800,color:"#374151"}}>{fmt(sts)}</p></div>
+              <div style={{marginBottom:10,background:"#F5F3FF",borderRadius:10,padding:"6px 10px"}}><p style={{margin:0,fontSize:11,color:"#8B5CF6",fontWeight:600}}>基本 {data.baseLimitMin||30}分{em>0&&<span style={{color:"#10B981"}}> + 獎勵 {em}分</span>} = <b>{(data.baseLimitMin||30)+em} 分鐘</b></p></div>
+              <button disabled={over} onClick={()=>!over&&(data.timerRunning?stopT(data):startT(data))} style={{width:"100%",padding:11,borderRadius:14,border:"none",fontSize:14,fontWeight:800,cursor:over?"not-allowed":"pointer",transition:"all .2s",background:over?"#F3F4F6":data.timerRunning?"#FEF2F2":"#8B5CF6",color:over?"#9CA3AF":data.timerRunning?"#EF4444":"white",boxShadow:(!over&&!data.timerRunning)?"0 4px 14px rgba(139,92,246,.35)":"none"}}>{over?"⛔ 今日已到上限":data.timerRunning?"⏸ 暫停":"▶ 開始看電視 / 玩遊戲"}</button>
+            </div>
+          </div>
+        </div>
+        <div style={{marginBottom:14}}><p style={{margin:"0 0 10px",fontWeight:800,color:"#065F46",fontSize:15}}>💚 做好事！點我加分</p><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>{(data.bonusActions||[]).map(a=>(<button key={a.id} onClick={()=>doPoint(a.points,a.emoji,a.label,data)} style={{background:"white",border:"2px solid #D1FAE5",borderRadius:18,padding:"12px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,textAlign:"left",boxShadow:"0 2px 8px rgba(16,185,129,.1)"}}><span style={{fontSize:28}}>{a.emoji}</span><div><p style={{margin:0,fontSize:13,fontWeight:700,color:"#065F46"}}>{a.label}</p><p style={{margin:0,fontSize:12,color:"#10B981",fontWeight:800}}>+{a.points} 分</p></div></button>))}</div></div>
+        <div style={{marginBottom:14}}><p style={{margin:"0 0 10px",fontWeight:800,color:"#991B1B",fontSize:15}}>❤️‍🔥 做壞事就扣分喔！</p><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>{(data.penaltyActions||[]).map(a=>(<button key={a.id} onClick={()=>setConfirm(a)} style={{background:"white",border:"2px solid #FEE2E2",borderRadius:18,padding:"12px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,textAlign:"left",boxShadow:"0 2px 8px rgba(239,68,68,.08)"}}><span style={{fontSize:28}}>{a.emoji}</span><div><p style={{margin:0,fontSize:13,fontWeight:700,color:"#991B1B"}}>{a.label}</p><p style={{margin:0,fontSize:12,color:"#EF4444",fontWeight:800}}>-{a.points} 分</p></div></button>))}</div></div>
+        {(data.log||[]).length>0&&(<div style={{background:"white",borderRadius:20,padding:"14px",border:"1px solid #F3F4F6"}}><p style={{margin:"0 0 8px",fontWeight:700,color:"#374151",fontSize:13}}>📝 最近記錄</p>{(data.log||[]).slice(0,5).map(l=>(<div key={l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid #F9FAFB"}}><span style={{fontSize:15}}>{l.emoji}</span><div style={{flex:1}}><span style={{fontSize:12,color:"#6B7280"}}>{l.label}</span>{l.user&&<span style={{fontSize:11,color:"#A78BFA",marginLeft:4}}>· {l.user}</span>}</div><span style={{fontSize:11,color:"#E5E7EB",marginRight:4}}>{l.time}</span><span style={{fontWeight:700,fontSize:12,color:l.delta>0?"#10B981":"#EF4444"}}>{l.delta>0?"+":""}{l.delta}</span></div>))}</div>)}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
