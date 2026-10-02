@@ -1,291 +1,1125 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
-<title>彥誠的積分冒險 🎮</title>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>圖威成本統計</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:system-ui,-apple-system,sans-serif;background:#F0EEFF;}
-button,input{font-family:inherit;}
-@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
-@keyframes flashFade{0%{opacity:1}100%{opacity:0}}
-@keyframes floatUp{0%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}100%{opacity:0;transform:translateX(-50%) translateY(-80px) scale(1.5)}}
-@keyframes shake{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-8px)}50%{transform:translateX(8px)}}
-@keyframes scaleIn{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
-button:active{transform:scale(0.92)!important;}
+:root{
+  --ink:#26233a; --muted:#77738a; --line:#e2dfea; --bg:#f4f3f8; --paper:#fff;
+  --brand:#6b5f9e; --brand-soft:#ecE9f5;
+  --quote:#cfc8e6; --invoice:#9d92c9; --paid:#4e4387;
+  --over:#c0504d; --ok:#3f8a6a;
+  --r-lg:14px; --r-sm:8px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.hidden{display:none!important}
+
+/* Buttons */
+.btn{border:1px solid var(--line);background:var(--paper);padding:8px 14px;border-radius:var(--r-sm);font-weight:500}
+.btn:hover{border-color:var(--brand)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{background:#5a4f8a}
+.btn.danger{color:var(--over)}
+.btn.danger:hover{border-color:var(--over)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--ink)}
+.btn.sm{padding:4px 10px;font-size:13px}
+
+/* Login */
+#loginView{min-height:100vh;display:grid;place-items:center;padding:24px}
+.login-box{width:100%;max-width:360px;background:var(--paper);border-radius:var(--r-lg);padding:32px 28px;border:1px solid var(--line)}
+.login-box h1{font-size:22px;margin:0 0 4px}
+.login-box p{color:var(--muted);margin:0 0 24px;font-size:14px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+.field label{font-size:13px;color:var(--muted);font-weight:500}
+.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 11px;background:#fff;width:100%}
+.field textarea{min-height:64px;resize:vertical}
+.msg{font-size:13px;margin-top:10px;min-height:1.2em}
+.msg.err{color:var(--over)}
+.setup-warn{background:#fff6e6;border:1px solid #f0d9a8;color:#7a5a1a;padding:10px 12px;border-radius:var(--r-sm);font-size:13px;margin-bottom:16px}
+
+/* App shell */
+header.top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px 24px;background:var(--paper);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header.top h1{font-size:17px;margin:0;flex:1}
+header.top .who{font-size:13px;color:var(--muted)}
+main{max-width:1080px;margin:0 auto;padding:24px}
+
+/* Overview */
+.overview{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:28px}
+.overview div{background:var(--paper);padding:14px 18px}
+.overview span{display:block;font-size:13px;color:var(--muted)}
+.overview strong{font-size:22px;font-weight:700}
+.bar-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.bar-head h2{font-size:18px;margin:0;flex:1}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;background:var(--paper)}
+.seg button{border:0;background:transparent;padding:6px 12px;font-size:13px;color:var(--muted)}
+.seg button.on{background:var(--brand-soft);color:var(--brand);font-weight:700}
+
+/* Spend ruler: the signature element */
+.ruler{position:relative;height:10px;background:#eceaf2;border-radius:5px;overflow:visible}
+.ruler .fill{position:absolute;top:0;bottom:0;left:0;border-radius:5px}
+.ruler .f-quote{background:var(--quote)}
+.ruler .f-invoice{background:var(--invoice)}
+.ruler .f-paid{background:var(--paid)}
+.ruler.over .f-quote{background:#e8b7b5}
+.ruler .budget-mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin:8px 0 0;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+
+/* Project rows */
+.plist{display:flex;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.prow{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,2fr) auto;gap:20px;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line);cursor:pointer;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%}
+.prow:last-child{border-bottom:0}
+.prow:hover{background:#faf9fd}
+.prow .pname{font-weight:700;font-size:16px}
+.prow .psub{font-size:13px;color:var(--muted)}
+.prow .pnums{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin-top:6px}
+.prow .pfig{text-align:right;min-width:110px}
+.prow .pfig strong{font-size:17px;display:block}
+.prow .pfig small{font-size:12px;color:var(--muted)}
+.badge{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--brand-soft);color:var(--brand);font-weight:500;margin-left:6px;vertical-align:2px}
+.badge.closed{background:#eceaf0;color:var(--muted)}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+.empty .btn{margin-top:12px}
+
+/* Detail */
+.crumb{margin-bottom:10px}
+.dhead{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.dhead .t{flex:1;min-width:200px}
+.dhead h2{font-size:24px;margin:0}
+.dhead .sub{color:var(--muted);font-size:14px}
+.dhead .acts{display:flex;gap:8px;flex-wrap:wrap}
+.dsum{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;margin-bottom:24px}
+.dsum .figs{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+.dsum .figs span{display:block;font-size:13px;color:var(--muted)}
+.dsum .figs strong{font-size:20px}
+.dsum .ruler{height:14px;border-radius:7px}
+.dsum .ruler .fill{border-radius:7px}
+.neg{color:var(--over)}
+.pos{color:var(--ok)}
+h3.sec{font-size:16px;margin:0 0 10px}
+.tbl-wrap{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);margin-bottom:28px}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:14px}
+th,td{padding:10px 14px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:13px;color:var(--muted);font-weight:500;background:#faf9fc}
+tr:last-child td{border-bottom:0}
+tr.total td{font-weight:700;background:#faf9fc}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:0}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.filters select,.filters input{border:1px solid var(--line);border-radius:var(--r-sm);padding:7px 10px;background:#fff}
+.filters input{flex:1;min-width:160px}
+.elist{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.erow{display:grid;grid-template-columns:92px minmax(0,1fr) auto auto;gap:14px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.erow:last-child{border-bottom:0}
+.erow .date{font-size:13px;color:var(--muted)}
+.erow .main{min-width:0}
+.erow .vendor{font-weight:700}
+.erow .desc{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.erow .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}
+.tag{font-size:12px;padding:0 7px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.tag.trade{color:#fff;border:0}
+.tag.out{border-color:#2f6b4f;color:#2f6b4f}
+.st{font-size:12px;padding:1px 8px;border-radius:10px;font-weight:500}
+.st-報價{background:#f0edf8;color:#6b5f9e}
+.st-已請款{background:#e5e1f3;color:#4e4387}
+.st-已付款{background:var(--paid);color:#fff}
+.erow .amt{text-align:right}
+.erow .amt strong{display:block;font-size:16px}
+.erow .amt small{font-size:12px;color:var(--muted)}
+.erow .ops{display:flex;gap:2px}
+.erow .ops a{font-size:13px;color:var(--brand);padding:4px 6px;text-decoration:none}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(38,35,58,.45);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:20}
+.modal .box{background:var(--paper);border-radius:var(--r-lg);width:100%;max-width:560px;padding:24px}
+.modal h3{margin:0 0 18px;font-size:18px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:14px}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(150px,100%),1fr));gap:8px;margin-bottom:6px}
+.tgrid label{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:2px}
+.tgrid input{border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+.hint{font-size:12px;color:var(--muted);margin:0 0 14px}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+details.more summary{cursor:pointer;font-size:14px;color:var(--brand);margin-bottom:10px}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;font-size:14px;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}
+#toast.err{background:var(--over)}
+
+
+/* Notice linkage */
+.link-sum{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:var(--paper);border-radius:16px;padding:4px 12px;font-size:13px;color:var(--muted)}
+.chip.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand);font-weight:700}
+.chip.warn b{color:#b26a00}
+.chip.chg b{color:var(--over)}
+.slist{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:28px}
+.sgroup-h{display:flex;align-items:center;gap:8px;padding:9px 16px;background:#faf9fc;border-bottom:1px solid var(--line);font-weight:700;font-size:14px}
+.sgroup-h small{font-weight:400;color:var(--muted);font-size:12px}
+.srow{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:14px;padding:12px 16px;border-bottom:1px solid var(--line);border-left:3px solid transparent}
+.srow.missing{border-left-color:#e0a030;background:#fffcf5}
+.srow.ignored{opacity:.55}
+.srow .sdate{font-size:13px;color:var(--muted)}
+.srow .sdesc{font-size:14px}
+.srow .smeta{font-size:12px;color:var(--muted);margin-top:2px}
+.srow .need{font-size:12px;color:#b26a00;margin-top:4px}
+.srow .sacts{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.echips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.echip{border:1px solid var(--line);background:#fff;border-radius:6px;padding:3px 8px;font-size:12px;display:inline-flex;gap:6px;align-items:center}
+.echip:hover{border-color:var(--brand)}
+.chg{margin-top:6px;font-size:12px;background:#fdf0ef;border:1px solid #f2cfcc;color:#8a3431;border-radius:6px;padding:6px 8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chg span{flex:1;min-width:160px}
+.tag.chgtag{border-color:#e5a9a6;color:var(--over)}
+.tag.linked{border-color:var(--invoice);color:var(--paid)}
+
+@media (max-width:720px){
+  main{padding:16px}
+  header.top{padding:12px 16px}
+  header.top .who{display:none}
+  .overview{grid-template-columns:1fr 1fr}
+  .prow{grid-template-columns:1fr;gap:10px}
+  .prow .pfig{text-align:left}
+  .dsum .figs{grid-template-columns:1fr 1fr}
+  .erow{grid-template-columns:1fr auto;gap:6px 12px}
+  .erow .date{grid-column:1/-1}
+  .erow .ops{grid-column:1/-1;justify-content:flex-end}
+  .row2{grid-template-columns:1fr}
+  .srow{grid-template-columns:1fr;gap:6px}
+  .srow .sacts{flex-direction:row;justify-content:flex-end}
+}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const {useState,useEffect,useRef,useCallback}=React;
 
-const FB_KEY="AIzaSyD6t7woI7dDhIU-Ta9bQJyIUcdyNOHMkV8";
-const FB_URL="https://firestore.googleapis.com/v1/projects/twowei-progresstrack/databases/(default)/documents/kidtracker/main";
-const store={
-  async get(){try{const r=await fetch(`${FB_URL}?key=${FB_KEY}`);if(r.status===404)return null;const d=await r.json();const raw=d.fields?.data?.stringValue;return raw?JSON.parse(raw):null;}catch{return null;}},
-  async set(data){try{await fetch(`${FB_URL}?key=${FB_KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({fields:{data:{stringValue:JSON.stringify(data)}}})});}catch{}}
+<!-- Login -->
+<section id="loginView">
+  <form class="login-box" id="loginForm" autocomplete="on">
+    <h1>圖威成本統計</h1>
+    <p>登入後才能查看與編輯成本資料。</p>
+    <div id="setupWarn" class="setup-warn hidden">尚未設定 Firebase。請在程式碼中的 firebaseConfig 貼上 twowei-progresstrack 的設定值。</div>
+    <div class="field"><label for="lEmail">Email</label><input id="lEmail" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="lPass">密碼</label><input id="lPass" type="password" autocomplete="current-password" required></div>
+    <button class="btn primary" type="submit" style="width:100%">登入</button>
+    <div class="msg err" id="loginMsg"></div>
+  </form>
+</section>
+
+<!-- App -->
+<section id="appView" class="hidden">
+  <header class="top">
+    <h1>圖威成本統計</h1>
+    <span class="who" id="whoAmI"></span>
+    <button class="btn sm" data-action="export-backup" title="下載全部成本資料的 JSON 備份">匯出備份</button>
+    <button class="btn sm" data-action="import-backup" title="從 JSON 備份匯入（合併模式）">匯入備份</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <button class="btn sm" data-action="logout">登出</button>
+  </header>
+  <main id="main"></main>
+</section>
+
+<!-- Project modal -->
+<div class="modal hidden" id="projectModal" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
+  <div class="box">
+    <h3 id="pmTitle">新增專案</h3>
+    <div class="field"><label for="pNoticeId">對應工作通告</label><select id="pNoticeId"></select></div>
+    <p class="hint">連結後，通告中的工作項目會自動帶入對照，通告有新增或修改時也會同步顯示。</p>
+    <p class="hint hidden" id="pFollow">專案名稱與狀態會跟著通告自動更新。</p>
+    <div class="field"><label for="pName">專案名稱</label><input id="pName" placeholder="例：嘉博-葉王展"></div>
+    <div class="row2">
+      <div class="field"><label for="pStatus">狀態</label><select id="pStatus"><option>進行中</option><option>已結案</option></select></div>
+      <div class="field"><label for="pBudget">總預算（含稅）</label><input id="pBudget" type="number" inputmode="numeric" min="0" placeholder="留空則使用分項合計"></div>
+    </div>
+    
+    <details class="more" id="pTradeDetails">
+      <summary>依工種設定預算</summary>
+      <div class="tgrid" id="pTradeGrid"></div>
+      <p class="hint" id="pTradeSum">分項合計：0</p>
+    </details>
+    <div class="field"><label for="pNote">備註</label><textarea id="pNote"></textarea></div>
+    <div class="mfoot">
+      <button class="btn" data-action="close-modal" data-target="projectModal">取消</button>
+      <button class="btn primary" data-action="save-project">儲存專案</button>
+    </div>
+  </div>
+</div>
+
+<!-- Entry modal -->
+<div class="modal hidden" id="entryModal" role="dialog" aria-modal="true" aria-labelledby="emTitle">
+  <div class="box">
+    <h3 id="emTitle">新增成本項目</h3>
+    <div class="field" id="eSlotField"><label for="eSlot">對應通告工項</label><select id="eSlot"></select></div>
+    <div class="row2">
+      <div class="field"><label for="eDate">日期</label><input id="eDate" type="date"></div>
+      <div class="field"><label for="eTrade">工種</label><select id="eTrade"></select></div>
+    </div>
+    <div class="field"><label for="eVendor">廠商</label><input id="eVendor" list="vendorList" placeholder="例：XX木作"><datalist id="vendorList"></datalist></div>
+    <div class="field"><label for="eDesc">項目內容</label><input id="eDesc" placeholder="例：展櫃製作 ×6"></div>
+    <div class="row2">
+      <div class="field"><label for="eAmount">金額</label><input id="eAmount" type="number" inputmode="numeric" step="1"></div>
+      <div class="field"><label for="eTax">稅別</label><select id="eTax"><option value="exc">未稅（自動加 5%）</option><option value="inc">含稅</option></select></div>
+    </div>
+    <div class="field"><label for="eStatus">進度</label><select id="eStatus"><option>報價</option><option>已請款</option><option>已付款</option></select></div>
+    <label class="check"><input type="checkbox" id="eOut"> 外包施作</label>
+    <div class="field"><label for="eLink">相關檔案連結（報價單、發票）</label><input id="eLink" type="url" placeholder="https://drive.google.com/..."></div>
+    <div class="field"><label for="eNote">備註</label><textarea id="eNote"></textarea></div>
+    <div class="mfoot">
+      <button class="btn" data-action="close-modal" data-target="entryModal">取消</button>
+      <button class="btn primary" data-action="save-entry">儲存項目</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, onSnapshot, serverTimestamp, writeBatch, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD6t7woI7dDhIU-Ta9bQJyIUcdyNOHMkV8",
+  authDomain: "twowei-progresstrack.firebaseapp.com",
+  projectId: "twowei-progresstrack",
+  storageBucket: "twowei-progresstrack.firebasestorage.app",
+  messagingSenderId: "1016966707396",
+  appId: "1:1016966707396:web:1aeb01a954f8c261b7f191",
+  measurementId: "G-DDGZN048K6"
 };
+/* 閒置多久自動登出（分鐘） */
+const IDLE_MINUTES = 30;
+/* 通告系統的資料位置（只讀取，不會修改通告） */
+const NOTICES_COLLECTION = 'construction_notices';
+const APP_CONFIG_PATH = ['app_config', 'global'];
 
-const LEVELS=[
-  {min:0,  name:"新兵",  emoji:"🪖",color:"#94A3B8",extraMin:0 },
-  {min:30, name:"冒險者",emoji:"⚔️", color:"#F59E0B",extraMin:2 },
-  {min:80, name:"勇士",  emoji:"🛡️", color:"#10B981",extraMin:4 },
-  {min:150,name:"英雄",  emoji:"🏹", color:"#3B82F6",extraMin:6 },
-  {min:250,name:"傳說",  emoji:"🌟", color:"#8B5CF6",extraMin:8 },
-  {min:400,name:"神話",  emoji:"👑", color:"#F97316",extraMin:10},
-];
-const getLevel=(pts)=>[...LEVELS].reverse().find(l=>pts>=l.min)||LEVELS[0];
+/* 工項清單：優先使用通告系統「工項管理」的設定，讀不到才用這份預設 */
+const DEFAULT_TYPES = [
+  ['水電','#1AADCE'],['圖威','#E07B2A'],['文保','#EC9A9A'],['木工','#7B5E3A'],['油漆','#8E24AA'],
+  ['大圖輸出','#0277BD'],['貼圖','#00897B'],['美術','#F4511E'],['多媒體','#3949AB'],['清潔','#558B2F'],
+  ['燈光','#F9A825'],['文宣品','#D81B60'],['攝影','#C62828'],['腳本企劃','#9E9D24'],['展示設計','#6A4C93'],['其他','#4A7C6F']
+].map(([name, color]) => ({ name, color }));
+let tradeTypes = DEFAULT_TYPES;
+const tradeNames = () => tradeTypes.map(t => t.name);
+const tradeColor = n => tradeTypes.find(t => t.name === n)?.color || '#8a8790';
 
-const D_BONUS=[
-  {id:1,label:"練鋼琴",   emoji:"🎹",points:15},
-  {id:2,label:"洗碗",     emoji:"🍽️",points:10},
-  {id:3,label:"掃地拖地", emoji:"🧹",points:8 },
-  {id:4,label:"做功課",   emoji:"📚",points:12},
-  {id:5,label:"幫忙買東西",emoji:"🛒",points:5 },
-];
-const D_PENALTY=[
-  {id:101,label:"偷看手機",  emoji:"📱",points:15},
-  {id:102,label:"超時上網",  emoji:"💻",points:20},
-  {id:103,label:"說謊",      emoji:"🤥",points:25},
-  {id:104,label:"不按時回家",emoji:"🏃",points:15},
-];
-const D_USERS=["彥誠","媽媽","老爸"];
-const DEF={points:0,bonusPoints:0,log:[],bonusActions:D_BONUS,penaltyActions:D_PENALTY,baseLimitMin:30,pin:"1234",users:D_USERS,timerAccSec:0,timerRunning:false,timerStartTime:null,dailyStats:{date:"",earned:0,deducted:0},lastResetDate:""};
-const todayStr=()=>new Date().toLocaleDateString("zh-TW");
-const checkReset=(d)=>{
-  const t=todayStr();
-  if((d.lastResetDate||"")!==t){
-    return{...d,
-      bonusPoints:d.points||0,   // 今日積分 → 明日獎勵
-      points:0,                   // 今日重新從 0 開始
-      timerAccSec:0,
-      timerRunning:false,
-      timerStartTime:null,
-      dailyStats:{date:t,earned:0,deducted:0},
-      lastResetDate:t,
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => Math.round(Number(n) || 0).toLocaleString('zh-TW');
+const taxed = e => e.taxIncluded ? (Number(e.amount) || 0) : Math.round((Number(e.amount) || 0) * 1.05);
+const safeLink = u => /^https:\/\/[^\s"'<>]+$/i.test(u || '') ? u : '';
+const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const ts = x => x?.toMillis?.() ?? Date.now();
+const md = d => d ? d.slice(5).replace('-', '/') : '';
+const range = s => s.endDate && s.endDate !== s.date ? `${md(s.date)}–${md(s.endDate)}` : md(s.date);
+const plainCache = new Map();
+function plain(html) {
+  if (!html) return '';
+  if (plainCache.has(html)) return plainCache.get(html);
+  const t = (new DOMParser().parseFromString(String(html), 'text/html').body.textContent || '').replace(/\s+/g, ' ').trim();
+  plainCache.set(html, t); return t;
+}
+const snapOf = s => ({ type: s.type || '', date: s.date || '', endDate: s.endDate || '', desc: plain(s.desc).slice(0, 300) });
+
+let projects = [], entries = [], notices = new Map(), unsubs = [];
+let view = 'list', currentProjectId = null, listFilter = '進行中', slotFilter = 'all';
+let editingProjectId = null, editingEntryId = null;
+let entryFilter = { trade: '', status: '', q: '' };
+
+function toast(msg, isErr = false) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.className = '', 2400);
+}
+
+/* ===== Firebase ===== */
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+await setPersistence(auth, browserSessionPersistence); // 關閉分頁即登出
+onAuthStateChanged(auth, user => user ? enterApp(user) : leaveApp());
+
+$('#loginForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const msg = $('#loginMsg'); msg.textContent = '';
+  try {
+    await signInWithEmailAndPassword(auth, $('#lEmail').value.trim(), $('#lPass').value);
+    $('#lPass').value = '';
+  } catch (err) {
+    const map = {
+      'auth/invalid-credential': 'Email 或密碼錯誤。',
+      'auth/invalid-email': 'Email 格式不正確。',
+      'auth/too-many-requests': '嘗試次數過多，帳號已暫時鎖定，請稍後再試。',
+      'auth/network-request-failed': '網路連線失敗，請確認網路後再試。'
     };
+    msg.textContent = map[err.code] || '登入失敗：' + err.code;
   }
-  return d;
-};
-const UKEY="kt_user_v1";
-const fmt=(s)=>{const a=Math.abs(Math.round(s));return `${String(Math.floor(a/60)).padStart(2,"0")}:${String(a%60).padStart(2,"0")}`;};
-const getLiveSec=(sd)=>{const base=sd?.timerAccSec||0;if(!sd?.timerRunning||!sd?.timerStartTime)return base;return base+Math.floor((Date.now()-new Date(sd.timerStartTime).getTime())/1000);};
-const STARS=Array.from({length:14},(_,i)=>({id:i,size:3+(i*3.7%6),opacity:.08+(i*.013%.14),top:i*13.7%100,left:i*27.3%100}));
+});
 
-function Ring({pct,size=130,sw=11,color="#8B5CF6",track="#F0EBF8"}){
-  const r=(size-sw)/2,c=2*Math.PI*r;
-  return(<svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
-    <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={track} strokeWidth={sw}/>
-    <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={sw} strokeDasharray={c} strokeDashoffset={c*(1-Math.max(0,Math.min(1,pct)))} strokeLinecap="round" style={{transition:"stroke-dashoffset 1s linear,stroke .3s"}}/>
-  </svg>);
-}
-function PCard({title,children}){return(<div style={{background:"white",borderRadius:20,padding:"16px 14px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.05)"}}><p style={{margin:"0 0 12px",fontWeight:700,color:"#374151",fontSize:14}}>{title}</p>{children}</div>);}
-const SI={
-  pBtn:{background:"#8B5CF6",color:"white",border:"none",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13,whiteSpace:"nowrap"},
-  del:{background:"#FEF2F2",color:"#EF4444",border:"1px solid #FECACA",borderRadius:8,padding:"3px 10px",cursor:"pointer",fontSize:12,fontWeight:600},
-  row:{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"1px solid #F9FAFB",fontSize:18},
-  inp:{border:"2px solid #E5E7EB",borderRadius:10,padding:"8px 10px",fontSize:14,outline:"none"},
-};
-
-function App(){
-  const[sd,setSD]=useState(null);
-  const[loading,setLoading]=useState(true);
-  const[fbError,setFbError]=useState(false);
-  const[screen,setScreen]=useState("loading");
-  const[curUser,setCurUser]=useState(()=>{try{return localStorage.getItem(UKEY)||null;}catch{return null;}});
-  const[flash,setFlash]=useState(null);
-  const[floatAnim,setFloatAnim]=useState(null);
-  const[lvUp,setLvUp]=useState(null);
-  const[confirm,setConfirm]=useState(null);
-  const[pinInput,setPinInput]=useState("");
-  const[pinError,setPinError]=useState(false);
-  const[saving,setSaving]=useState(false);
-  const[limitInput,setLimitInput]=useState(30);
-  const[newPin,setNewPin]=useState("");
-  const[addB,setAddB]=useState(false);
-  const[addP,setAddP]=useState(false);
-  const[editAction,setEditAction]=useState(null);
-  const[newB,setNewB]=useState({label:"",emoji:"✨",points:10});
-  const[newP,setNewP]=useState({label:"",emoji:"😤",points:15});
-  const[uInput,setUInput]=useState("");
-  const[,tick]=useState(0);
-  const refs=useRef({});
-
-  const loadSD=useCallback(async()=>{const d=await store.get();if(d){const cd=checkReset(d);if(cd!==d)await store.set(cd);setSD(cd);return cd;}return null;},[]);
-  const saveSD=useCallback(async(nd)=>{setSD(nd);setSaving(true);await store.set(nd);setSaving(false);},[]);
-
-  useEffect(()=>{
-    store.get().then(d=>{
-      if(!d){const init=checkReset({...DEF});store.set(init).then(()=>setSD(init));setSD(init);}
-      else{const cd=checkReset(d);if(cd!==d)store.set(cd);setSD(cd);setLimitInput(cd.baseLimitMin??30);}
-      setLoading(false);
-      setScreen((localStorage.getItem(UKEY)||null)?"kid":"choose_user");
-    }).catch(()=>{setFbError(true);setLoading(false);});
-    refs.current.poll=setInterval(loadSD,5000);
-    refs.current.tick=setInterval(()=>tick(n=>n+1),1000);
-    return()=>{clearInterval(refs.current.poll);clearInterval(refs.current.tick);};
-  },[]);
-
-  const selUser=(name)=>{try{localStorage.setItem(UKEY,name);}catch{}setCurUser(name);setScreen("kid");};
-
-  const doPoint=useCallback(async(delta,emoji,label,data)=>{
-    const op=data.points||0,np=Math.max(0,op+delta);
-    const ol=getLevel(op),nl=getLevel(np);
-    const e={id:Date.now(),time:new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"}),emoji,label,delta,user:curUser||"未知"};
-    const t=todayStr();const ds=data.dailyStats?.date===t?data.dailyStats:{date:t,earned:0,deducted:0};
-    const nds={date:t,earned:ds.earned+(delta>0?delta:0),deducted:ds.deducted+(delta<0?Math.abs(delta):0)};
-    await saveSD({...data,points:np,log:[e,...(data.log||[])].slice(0,50),dailyStats:nds});
-    setFlash(delta>0?"#10B981":"#EF4444");setFloatAnim({text:delta>0?`+${delta}`:`${delta}`,color:delta>0?"#10B981":"#EF4444"});
-    setTimeout(()=>setFlash(null),400);setTimeout(()=>setFloatAnim(null),900);
-    if(nl.min>ol.min)setTimeout(()=>{setLvUp(nl);setTimeout(()=>setLvUp(null),3200);},600);
-  },[curUser,saveSD]);
-
-  const startT=async(data)=>{if(data.timerRunning)return;await saveSD({...data,timerRunning:true,timerStartTime:new Date().toISOString()});};
-  const stopT=async(data)=>{if(!data.timerRunning||!data.timerStartTime)return;const e=Math.max(0,Math.floor((Date.now()-new Date(data.timerStartTime).getTime())/1000));await saveSD({...data,timerRunning:false,timerAccSec:(data.timerAccSec||0)+e,timerStartTime:null});};
-
-  const tryPin=useCallback((input)=>{if(input===(sd?.pin??"1234")){setScreen("parent");setPinInput("");}else{setPinError(true);setPinInput("");setTimeout(()=>setPinError(false),700);}},[sd?.pin]);
-  const handleDigit=useCallback((k)=>{if(k==="⌫"){setPinInput(p=>p.slice(0,-1));return;}setPinInput(prev=>{const next=(prev+k).slice(0,4);if(next.length===4)setTimeout(()=>tryPin(next),120);return next;});},[tryPin]);
-
-  const data=sd||DEF;
-  const sts=getLiveSec(data);
-  const pts=data.points||0;               // 今日累積積分
-  const bonusPts=data.bonusPoints||0;     // 昨日積分 → 今日螢幕獎勵
-  const lv=getLevel(pts);                 // 今日等級（決定明日獎勵）
-  const bonusLv=getLevel(bonusPts);       // 昨日等級（決定今日獎勵）
-  const li=LEVELS.findIndex(l=>l.min===lv.min);
-  const nlv=LEVELS[li+1];
-  const em=bonusLv.extraMin;              // 今日實際獎勵分鐘（來自昨日）
-  const els=((data.baseLimitMin||30)+em)*60;
-  const over=sts>=els;
-  const rem=Math.max(0,els-sts);
-  const rc=over?"#EF4444":rem<els*.2?"#F59E0B":"#8B5CF6";
-
-  useEffect(()=>{if(sd?.timerRunning&&sts>=els)stopT(sd);},[sts]);
-
-  if(loading)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#EDE9FE,#DBEAFE)"}}><div style={{textAlign:"center"}}><div style={{fontSize:64,animation:"breathe 1.2s ease-in-out infinite"}}>⭐</div><p style={{color:"#8B5CF6",fontWeight:700,marginTop:12}}>連線到 Firebase…</p></div></div>);
-
-  if(fbError)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#FEF2F2",padding:24}}><div style={{textAlign:"center",maxWidth:320}}><div style={{fontSize:56}}>🔥</div><h2 style={{color:"#991B1B",marginBottom:8}}>Firebase 連線失敗</h2><p style={{color:"#6B7280",fontSize:14,marginBottom:16}}>請確認網路正常，再重新整理頁面。</p><button onClick={()=>window.location.reload()} style={{background:"#EF4444",color:"white",border:"none",borderRadius:12,padding:"10px 24px",cursor:"pointer",fontWeight:700,fontSize:16}}>重新整理</button></div></div>);
-
-  if(screen==="choose_user")return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#EDE9FE,#D1FAE5)",padding:20}}><div style={{background:"white",borderRadius:28,padding:"36px 24px",maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 8px 40px rgba(139,92,246,.2)"}}><div style={{fontSize:54,marginBottom:10}}>👋</div><h2 style={{margin:"0 0 4px",color:"#4C1D95",fontSize:20,fontWeight:800}}>你是誰？</h2><p style={{margin:"0 0 22px",color:"#9CA3AF",fontSize:13}}>選擇名字，記錄積分操作</p><div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>{(data.users||D_USERS).map(name=>(<button key={name} onClick={()=>selUser(name)} style={{padding:14,borderRadius:16,border:"2px solid #DDD6FE",background:"#F5F3FF",cursor:"pointer",fontWeight:700,fontSize:16,color:"#4C1D95"}}>{name}</button>))}</div><div style={{display:"flex",gap:8}}><input placeholder="輸入其他名字" value={uInput} onChange={e=>setUInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&uInput.trim()&&selUser(uInput.trim())} style={{...SI.inp,flex:1}}/><button style={SI.pBtn} onClick={()=>uInput.trim()&&selUser(uInput.trim())}>確定</button></div></div></div>);
-
-  if(screen==="pin")return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#EDE9FE,#DBEAFE)",padding:20}}><div style={{background:"white",borderRadius:28,padding:"36px 26px",maxWidth:320,width:"100%",textAlign:"center",boxShadow:"0 8px 40px rgba(139,92,246,.22)"}}><div style={{fontSize:52,marginBottom:10}}>🔐</div><h2 style={{margin:"0 0 4px",color:"#4C1D95",fontSize:20,fontWeight:800}}>家長模式</h2><p style={{margin:"0 0 22px",color:"#9CA3AF",fontSize:13}}>請輸入4位數密碼</p><div style={{display:"flex",justifyContent:"center",gap:10,marginBottom:20}}>{[0,1,2,3].map(i=>(<div key={i} style={{width:46,height:54,border:`2px solid ${pinError?"#EF4444":"#C4B5FD"}`,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"#4C1D95",background:pinError?"#FEF2F2":"#F5F3FF",animation:pinError?"shake .4s ease":"none"}}>{pinInput[i]?"●":""}</div>))}</div><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,maxWidth:216,margin:"0 auto 16px"}}>{[1,2,3,4,5,6,7,8,9,"","0","⌫"].map((k,i)=>(<button key={i} disabled={k===""} onClick={()=>k!==""&&handleDigit(String(k))} style={{padding:14,border:"2px solid #EDE9FE",borderRadius:12,fontSize:18,fontWeight:700,cursor:k===""?"default":"pointer",background:k===""?"transparent":"#F5F3FF",color:"#4C1D95",opacity:k===""?0:1,outline:"none"}}>{k}</button>))}</div><button onClick={()=>setScreen("kid")} style={{background:"none",border:"1px solid #E5E7EB",borderRadius:10,padding:"8px 20px",cursor:"pointer",color:"#9CA3AF",fontSize:14}}>← 返回</button></div></div>);
-
-  if(screen==="parent")return(
-    <div style={{minHeight:"100vh",background:"#F8F7FF"}}>
-      <div style={{maxWidth:460,margin:"0 auto",padding:"20px 14px 60px"}}>
-        {editAction&&(
-          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-            <div style={{background:"white",borderRadius:24,padding:28,maxWidth:320,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,.2)"}}>
-              <h3 style={{margin:"0 0 18px",color:"#4C1D95",fontSize:16,fontWeight:800}}>✏️ 編輯項目</h3>
-              <div style={{display:"flex",gap:8,marginBottom:12}}>
-                <input placeholder="圖示" value={editAction.emoji} onChange={e=>setEditAction(a=>({...a,emoji:e.target.value}))} style={{...SI.inp,width:54,textAlign:"center",fontSize:20}}/>
-                <input placeholder="名稱" value={editAction.label} onChange={e=>setEditAction(a=>({...a,label:e.target.value}))} style={{...SI.inp,flex:1}}/>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20}}>
-                <span style={{color:"#6B7280",fontSize:14,whiteSpace:"nowrap"}}>分數：</span>
-                <input type="number" value={editAction.points} onChange={e=>setEditAction(a=>({...a,points:+e.target.value}))} style={{...SI.inp,flex:1,fontSize:18,fontWeight:700}}/>
-                <span style={{color:"#6B7280",fontSize:14}}>分</span>
-              </div>
-              <div style={{display:"flex",gap:10}}>
-                <button onClick={()=>setEditAction(null)} style={{flex:1,padding:11,borderRadius:14,border:"2px solid #E5E7EB",background:"white",cursor:"pointer",fontWeight:600,color:"#6B7280",fontSize:14}}>取消</button>
-                <button onClick={()=>{
-                  if(editAction.type==="bonus"){saveSD({...data,bonusActions:(data.bonusActions||[]).map(x=>x.id===editAction.id?{...x,emoji:editAction.emoji,label:editAction.label,points:editAction.points}:x)});}
-                  else{saveSD({...data,penaltyActions:(data.penaltyActions||[]).map(x=>x.id===editAction.id?{...x,emoji:editAction.emoji,label:editAction.label,points:editAction.points}:x)});}
-                  setEditAction(null);
-                }} style={{flex:1,padding:11,borderRadius:14,border:"none",background:"#8B5CF6",color:"white",cursor:"pointer",fontWeight:700,fontSize:14}}>儲存</button>
-              </div>
-            </div>
-          </div>
-        )}
-        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:22}}>
-          <button onClick={()=>setScreen("kid")} style={{background:"#8B5CF6",color:"white",border:"none",borderRadius:12,padding:"9px 18px",cursor:"pointer",fontWeight:700,fontSize:14}}>← 返回</button>
-          <h1 style={{margin:0,color:"#4C1D95",fontSize:19,fontWeight:800}}>⚙️ 家長設定</h1>
-          {saving&&<span style={{fontSize:12,color:"#A78BFA"}}>同步中…</span>}
-        </div>
-        <PCard title="📊 目前狀態">
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,textAlign:"center"}}>
-            <div style={{background:"#F5F3FF",borderRadius:14,padding:"10px 6px"}}><div style={{fontSize:22,fontWeight:900,color:lv.color}}>{pts}</div><div style={{fontSize:11,color:"#9CA3AF"}}>今日累積積分</div></div>
-            <div style={{background:"#EFF6FF",borderRadius:14,padding:"10px 6px"}}><div style={{fontSize:22,fontWeight:900,color:"#3B82F6"}}>{bonusPts}分→+{em}分鐘</div><div style={{fontSize:11,color:"#9CA3AF"}}>昨日積分→今日獎勵</div></div>
-          </div>
-          <p style={{color:"#9CA3AF",fontSize:11,margin:"10px 0 0",textAlign:"center"}}>今日積分會在明天凌晨自動結算為螢幕獎勵</p>
-        </PCard>
-        <PCard title="🏆 積分達標獎勵">{LEVELS.map((l,i)=>(<div key={l.min} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:i<LEVELS.length-1?"1px solid #F9FAFB":"none",background:lv.min===l.min?"#F5F3FF":"transparent",borderRadius:lv.min===l.min?10:0,paddingLeft:lv.min===l.min?8:0}}><span style={{fontSize:18}}>{l.emoji}</span><span style={{flex:1,fontWeight:lv.min===l.min?700:400,color:pts>=l.min?"#374151":"#D1D5DB",fontSize:13}}>{l.name}{lv.min===l.min?" ◀ 目前":""}</span><span style={{fontSize:12,color:pts>=l.min?"#8B5CF6":"#D1D5DB"}}>{l.min===0?"起始":`${l.min}分`}</span>{l.extraMin>0&&<span style={{color:pts>=l.min?"#10B981":"#D1D5DB",fontWeight:700,fontSize:13,marginLeft:4}}>+{l.extraMin}分鐘</span>}</div>))}</PCard>
-        <PCard title="📺 每日螢幕時間基本上限"><div style={{display:"flex",alignItems:"center",gap:8}}><input type="number" min={5} max={180} value={limitInput} onChange={e=>setLimitInput(+e.target.value)} style={{...SI.inp,width:70}}/><span style={{color:"#6B7280"}}>分鐘</span><button style={SI.pBtn} onClick={()=>saveSD({...data,baseLimitMin:limitInput})}>儲存</button></div><p style={{color:"#9CA3AF",fontSize:12,margin:"6px 0 0"}}>目前：{data.baseLimitMin||30}分 + 獎勵{em}分 = <b>{(data.baseLimitMin||30)+em} 分鐘</b></p></PCard>
-        <PCard title="✅ 加分項目">{(data.bonusActions||[]).map(a=>(<div key={a.id} style={SI.row}><span style={{fontSize:18}}>{a.emoji}</span><span style={{flex:1,fontWeight:600,color:"#065F46",fontSize:13}}>{a.label}</span><span style={{color:"#10B981",fontWeight:700,fontSize:13,marginRight:6}}>+{a.points}</span><button onClick={()=>setEditAction({...a,type:"bonus"})} style={{...SI.del,background:"#EFF6FF",color:"#3B82F6",border:"1px solid #BFDBFE",marginRight:4}}>編輯</button><button onClick={()=>saveSD({...data,bonusActions:(data.bonusActions||[]).filter(x=>x.id!==a.id)})} style={SI.del}>刪除</button></div>))}{addB?(<div style={{marginTop:10}}><div style={{display:"flex",gap:6,marginBottom:8}}><input placeholder="🎯" value={newB.emoji} onChange={e=>setNewB(n=>({...n,emoji:e.target.value}))} style={{...SI.inp,width:46,textAlign:"center"}}/><input placeholder="名稱" value={newB.label} onChange={e=>setNewB(n=>({...n,label:e.target.value}))} style={{...SI.inp,flex:1}}/><input type="number" placeholder="分" value={newB.points} onChange={e=>setNewB(n=>({...n,points:+e.target.value}))} style={{...SI.inp,width:54}}/></div><div style={{display:"flex",gap:8}}><button style={SI.pBtn} onClick={()=>{if(newB.label){saveSD({...data,bonusActions:[...(data.bonusActions||[]),{...newB,id:Date.now()}]});setNewB({label:"",emoji:"✨",points:10});setAddB(false);}}}>新增</button><button style={{...SI.pBtn,background:"#9CA3AF"}} onClick={()=>setAddB(false)}>取消</button></div></div>):(<button style={{...SI.pBtn,width:"100%",marginTop:10}} onClick={()=>setAddB(true)}>+ 新增加分項目</button>)}</PCard>
-        <PCard title="❌ 扣分項目">{(data.penaltyActions||[]).map(a=>(<div key={a.id} style={SI.row}><span style={{fontSize:18}}>{a.emoji}</span><span style={{flex:1,fontWeight:600,color:"#991B1B",fontSize:13}}>{a.label}</span><span style={{color:"#EF4444",fontWeight:700,fontSize:13,marginRight:6}}>-{a.points}</span><button onClick={()=>setEditAction({...a,type:"penalty"})} style={{...SI.del,background:"#EFF6FF",color:"#3B82F6",border:"1px solid #BFDBFE",marginRight:4}}>編輯</button><button onClick={()=>saveSD({...data,penaltyActions:(data.penaltyActions||[]).filter(x=>x.id!==a.id)})} style={SI.del}>刪除</button></div>))}{addP?(<div style={{marginTop:10}}><div style={{display:"flex",gap:6,marginBottom:8}}><input placeholder="💢" value={newP.emoji} onChange={e=>setNewP(n=>({...n,emoji:e.target.value}))} style={{...SI.inp,width:46,textAlign:"center"}}/><input placeholder="名稱" value={newP.label} onChange={e=>setNewP(n=>({...n,label:e.target.value}))} style={{...SI.inp,flex:1}}/><input type="number" placeholder="分" value={newP.points} onChange={e=>setNewP(n=>({...n,points:+e.target.value}))} style={{...SI.inp,width:54}}/></div><div style={{display:"flex",gap:8}}><button style={{...SI.pBtn,background:"#EF4444"}} onClick={()=>{if(newP.label){saveSD({...data,penaltyActions:[...(data.penaltyActions||[]),{...newP,id:Date.now()}]});setNewP({label:"",emoji:"😤",points:15});setAddP(false);}}}>新增</button><button style={{...SI.pBtn,background:"#9CA3AF"}} onClick={()=>setAddP(false)}>取消</button></div></div>):(<button style={{...SI.pBtn,background:"#EF4444",width:"100%",marginTop:10}} onClick={()=>setAddP(true)}>+ 新增扣分項目</button>)}</PCard>
-        <PCard title="👥 使用者名單"><p style={{color:"#9CA3AF",fontSize:12,margin:"0 0 10px"}}>所有人開啟同一網址，選各自名字即可加減分。</p>{(data.users||D_USERS).map((u,i)=>(<div key={i} style={SI.row}><span>👤</span><span style={{flex:1,fontWeight:500,color:"#374151",fontSize:14}}>{u}</span>{(data.users||D_USERS).length>1&&(<button onClick={()=>saveSD({...data,users:(data.users||D_USERS).filter((_,j)=>j!==i)})} style={SI.del}>移除</button>)}</div>))}<div style={{display:"flex",gap:8,marginTop:10}}><input placeholder="新增使用者" value={uInput} onChange={e=>setUInput(e.target.value)} style={{...SI.inp,flex:1}}/><button style={SI.pBtn} onClick={()=>{const n=uInput.trim();if(n&&!(data.users||D_USERS).includes(n)){saveSD({...data,users:[...(data.users||D_USERS),n]});setUInput("");}}}>新增</button></div></PCard>
-        <PCard title="🔐 修改家長密碼"><div style={{display:"flex",gap:8}}><input type="password" placeholder="新密碼（4位數字）" maxLength={4} value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} style={{...SI.inp,flex:1}}/><button style={SI.pBtn} onClick={()=>{if(newPin.length===4){saveSD({...data,pin:newPin});setNewPin("");alert("✅ 密碼已更新！");}else alert("請輸入4位數字");}}>儲存</button></div><p style={{color:"#9CA3AF",fontSize:12,margin:"6px 0 0"}}>預設密碼：1234</p></PCard>
-        <PCard title="🔄 重設選項"><div style={{display:"flex",flexWrap:"wrap",gap:8}}><button style={{...SI.pBtn,background:"#F59E0B"}} onClick={()=>{if(window.confirm("確定重設今日螢幕時間嗎？"))saveSD({...data,timerAccSec:0,timerRunning:false,timerStartTime:null});}}>重設今日時間</button><button style={{...SI.pBtn,background:"#10B981"}} onClick={()=>{if(window.confirm("確定重設今日統計（加分/扣分歸零）嗎？"))saveSD({...data,dailyStats:{date:todayStr(),earned:0,deducted:0}});}}>重設今日統計</button><button style={{...SI.pBtn,background:"#6B7280"}} onClick={()=>{if(window.confirm("確定重設今日積分為 0 嗎？"))saveSD({...data,points:0});}}>重設今日積分</button><button style={{...SI.pBtn,background:"#9CA3AF"}} onClick={()=>{if(window.confirm("確定清除所有記錄嗎？"))saveSD({...data,log:[]});}}>清除記錄</button></div></PCard>
-        {(data.log||[]).length>0&&(<PCard title="📋 完整活動記錄">{(data.log||[]).map(l=>(<div key={l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F3F4F6"}}><span style={{fontSize:16}}>{l.emoji}</span><div style={{flex:1}}><span style={{fontSize:13,color:"#374151"}}>{l.label}</span>{l.user&&<span style={{fontSize:11,color:"#A78BFA",marginLeft:5}}>by {l.user}</span>}</div><span style={{fontSize:11,color:"#D1D5DB",marginRight:4}}>{l.time}</span><span style={{fontWeight:700,fontSize:12,color:l.delta>0?"#10B981":"#EF4444"}}>{l.delta>0?"+":""}{l.delta}</span></div>))}</PCard>)}
-      </div>
-    </div>
-  );
-
-  const mot=pts<30?`💪 再 ${30-pts} 分，明天就有 +2 分鐘獎勵！`:pts<80?`⚔️ 再 ${80-pts} 分，明天升勇士 +4 分鐘！`:pts<150?`🛡️ 再 ${150-pts} 分，明天升英雄 +6 分鐘！`:pts<250?`🏹 再 ${250-pts} 分，明天升傳說 +8 分鐘！`:pts<400?`🌟 再 ${400-pts} 分，明天神話 +10 分鐘！`:"👑 神話！明天最高獎勵 +10 分鐘！";
-
-  return(
-    <div style={{minHeight:"100vh",position:"relative",overflow:"hidden",background:"linear-gradient(160deg,#F0EEFF 0%,#E8FFF5 55%,#EFF6FF 100%)"}}>
-      {STARS.map(s=>(<div key={s.id} style={{position:"fixed",borderRadius:"50%",background:"#A78BFA",pointerEvents:"none",width:s.size,height:s.size,opacity:s.opacity,top:`${s.top}%`,left:`${s.left}%`}}/>))}
-      {flash&&<div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:50,background:flash+"2A",animation:"flashFade .4s ease forwards"}}/>}
-      {floatAnim&&<div style={{position:"fixed",top:"26%",left:"50%",transform:"translateX(-50%)",fontSize:46,fontWeight:900,color:floatAnim.color,zIndex:60,pointerEvents:"none",animation:"floatUp .9s ease forwards",textShadow:"0 2px 12px rgba(0,0,0,.18)"}}>{floatAnim.text}</div>}
-      {lvUp&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setLvUp(null)}><div style={{textAlign:"center",animation:"scaleIn .4s ease"}}><div style={{fontSize:90,lineHeight:1}}>{lvUp.emoji}</div><div style={{fontSize:32,fontWeight:900,color:"white",textShadow:`0 0 24px ${lvUp.color}`,marginTop:12}}>🎉 升級了！</div><div style={{fontSize:24,color:lvUp.color,fontWeight:800,marginTop:4}}>{lvUp.name}</div><div style={{fontSize:18,color:"white",marginTop:10,background:"rgba(255,255,255,.12)",borderRadius:16,padding:"10px 24px"}}>🎮 額外獲得 <b style={{color:lvUp.color}}>{lvUp.extraMin} 分鐘</b> 螢幕時間！</div><div style={{color:"rgba(255,255,255,.5)",fontSize:12,marginTop:16}}>點擊關閉</div></div></div>)}
-      {confirm&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{background:"white",borderRadius:24,padding:28,maxWidth:300,width:"100%",textAlign:"center",boxShadow:"0 8px 32px rgba(0,0,0,.22)"}}><div style={{fontSize:56,marginBottom:8}}>{confirm.emoji}</div><h3 style={{color:"#1F2937",margin:"0 0 4px",fontSize:18}}>{confirm.label}</h3><div style={{color:"#EF4444",fontSize:30,fontWeight:900,margin:"4px 0 10px"}}>-{confirm.points} 分</div><p style={{color:"#9CA3AF",fontSize:12,margin:"0 0 14px"}}>由 <b style={{color:"#8B5CF6"}}>{curUser}</b> 確認</p><div style={{display:"flex",gap:10}}><button onClick={()=>setConfirm(null)} style={{flex:1,padding:12,borderRadius:14,border:"2px solid #E5E7EB",background:"white",cursor:"pointer",fontWeight:600,color:"#6B7280",fontSize:15}}>取消</button><button onClick={()=>{doPoint(-confirm.points,confirm.emoji,confirm.label,data);setConfirm(null);}} style={{flex:1,padding:12,borderRadius:14,border:"none",background:"#EF4444",color:"white",cursor:"pointer",fontWeight:800,fontSize:15}}>確定扣分</button></div></div></div>)}
-      <div style={{maxWidth:420,margin:"0 auto",padding:"18px 14px 52px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
-          <div><p style={{margin:0,color:"#8B5CF6",fontSize:11,fontWeight:600,letterSpacing:.5}}>{new Date().toLocaleDateString("zh-TW",{month:"long",day:"numeric",weekday:"short"})}{saving&&<span style={{marginLeft:6,color:"#C4B5FD"}}>同步中…</span>}</p><h1 style={{margin:0,color:"#4C1D95",fontSize:17,fontWeight:800}}>{lv.emoji} {lv.name} 的冒險日記！</h1></div>
-          <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}><button onClick={()=>setScreen("choose_user")} style={{background:"white",border:"2px solid #DDD6FE",borderRadius:10,padding:"5px 10px",cursor:"pointer",color:"#7C3AED",fontWeight:700,fontSize:11}}>👤 {curUser||"？"}</button><button onClick={()=>setScreen("pin")} style={{background:"white",border:"2px solid #DDD6FE",borderRadius:10,padding:"5px 10px",cursor:"pointer",color:"#7C3AED",fontWeight:600,fontSize:11}}>🔒 家長</button></div>
-        </div>
-        <div style={{background:"white",borderRadius:24,padding:"20px 18px",marginBottom:14,boxShadow:"0 4px 24px rgba(139,92,246,.16)",border:"2px solid #EDE9FE",textAlign:"center"}}>
-          <p style={{margin:"0 0 2px",color:"#8B5CF6",fontSize:11,fontWeight:700,letterSpacing:1.5}}>✨ 今日累積積分（影響明天）✨</p>
-          <div style={{fontSize:90,fontWeight:900,lineHeight:1.1,color:lv.color,textShadow:`0 0 28px ${lv.color}55,0 0 56px ${lv.color}22`,animation:"breathe 3s ease-in-out infinite"}}>{pts}</div>
-          <p style={{margin:"4px 0 0",color:"#9CA3AF",fontSize:12}}>{mot}</p>
-          {nlv&&(()=>{const p=Math.min(1,(pts-lv.min)/(nlv.min-lv.min));return(<div style={{marginTop:14}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#C4B5FD",marginBottom:4}}><span>{lv.emoji} {lv.name}</span><span>{nlv.emoji} {nlv.name}（再 <b style={{color:nlv.color}}>{nlv.min-pts}</b> 分）</span></div><div style={{height:8,background:"#F3F4F6",borderRadius:999}}><div style={{height:"100%",borderRadius:999,transition:"width .6s ease",width:`${p*100}%`,background:`linear-gradient(90deg,${lv.color},${nlv.color})`}}/></div></div>)})()}
-          {lv.extraMin>0&&(<div style={{marginTop:12,background:"linear-gradient(90deg,#EFF6FF,#DBEAFE)",borderRadius:14,padding:"10px 14px",border:"1.5px solid #BFDBFE",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:22}}>🌙</span><div style={{textAlign:"left"}}><p style={{margin:0,fontSize:12,fontWeight:800,color:"#1D4ED8"}}>明天可獲得獎勵！</p><p style={{margin:0,fontSize:11,color:"#3B82F6"}}>以今日表現，明天額外獲得 <b>{lv.extraMin} 分鐘</b>電視 / 電玩時間</p></div></div>)}
-        </div>
-        <div style={{background:"white",borderRadius:24,padding:"16px 14px",marginBottom:14,boxShadow:"0 4px 16px rgba(0,0,0,.06)",border:`2px solid ${over?"#FEE2E2":"#EDE9FE"}`}}>
-          <p style={{margin:"0 0 12px",fontWeight:700,color:over?"#EF4444":"#374151",fontSize:14,textAlign:"center"}}>{over?"⛔ 今日螢幕時間已到上限！":"📺 今日螢幕時間"}</p>
-          <div style={{display:"flex",alignItems:"center",gap:14}}>
-            <div style={{position:"relative",flexShrink:0,width:130,height:130}}><Ring pct={over?0:rem/els} color={rc}/><div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:21,fontWeight:900,color:rc,letterSpacing:-1}}>{over?"00:00":fmt(rem)}</span><span style={{fontSize:10,color:"#9CA3AF",fontWeight:600}}>{over?"🚫 時間到！":"⏱ 剩餘"}</span></div></div>
-            <div style={{flex:1}}>
-              <div style={{marginBottom:6}}><p style={{margin:0,fontSize:11,color:"#9CA3AF"}}>今日已使用</p><p style={{margin:0,fontSize:19,fontWeight:800,color:"#374151"}}>{fmt(sts)}</p></div>
-              <div style={{marginBottom:10,background:"#F5F3FF",borderRadius:10,padding:"6px 10px"}}><p style={{margin:0,fontSize:11,color:"#8B5CF6",fontWeight:600}}>基本 {data.baseLimitMin||30}分{em>0?<span style={{color:"#10B981"}}> + 昨日獎勵 {em}分</span>:<span style={{color:"#9CA3AF"}}> + 今日努力賺明天獎勵</span>} = <b>{(data.baseLimitMin||30)+em} 分鐘</b></p></div>
-              <button disabled={over} onClick={()=>!over&&(data.timerRunning?stopT(data):startT(data))} style={{width:"100%",padding:11,borderRadius:14,border:"none",fontSize:14,fontWeight:800,cursor:over?"not-allowed":"pointer",transition:"all .2s",background:over?"#F3F4F6":data.timerRunning?"#FEF2F2":"#8B5CF6",color:over?"#9CA3AF":data.timerRunning?"#EF4444":"white",boxShadow:(!over&&!data.timerRunning)?"0 4px 14px rgba(139,92,246,.35)":"none"}}>{over?"⛔ 今日已到上限":data.timerRunning?"⏸ 暫停":"▶ 開始看電視 / 玩遊戲"}</button>
-            </div>
-          </div>
-        </div>
-        {/* Daily Stats */}
-        {(()=>{const t=todayStr();const ds=(data.dailyStats&&data.dailyStats.date===t)?data.dailyStats:{date:t,earned:0,deducted:0};const net=ds.earned-ds.deducted;return(
-        <div style={{background:"white",borderRadius:20,padding:"14px 16px",marginBottom:14,boxShadow:"0 2px 12px rgba(0,0,0,.06)",border:"1.5px solid #EDE9FE"}}>
-          <p style={{margin:"0 0 10px",fontWeight:700,color:"#4C1D95",fontSize:13}}>📊 今日積分統計</p>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,textAlign:"center"}}>
-            <div style={{background:"#F0FDF4",borderRadius:12,padding:"10px 6px"}}>
-              <div style={{fontSize:22,fontWeight:900,color:"#10B981"}}>+{ds.earned}</div>
-              <div style={{fontSize:11,color:"#6B7280",marginTop:2}}>今日加分</div>
-            </div>
-            <div style={{background:"#FEF2F2",borderRadius:12,padding:"10px 6px"}}>
-              <div style={{fontSize:22,fontWeight:900,color:"#EF4444"}}>-{ds.deducted}</div>
-              <div style={{fontSize:11,color:"#6B7280",marginTop:2}}>今日扣分</div>
-            </div>
-            <div style={{background:net>=0?"#F0EEFF":"#FFF7ED",borderRadius:12,padding:"10px 6px"}}>
-              <div style={{fontSize:22,fontWeight:900,color:net>=0?"#8B5CF6":"#F97316"}}>{net>=0?"+":""}{net}</div>
-              <div style={{fontSize:11,color:"#6B7280",marginTop:2}}>今日淨分</div>
-            </div>
-          </div>
-        </div>);})()}
-        <div style={{marginBottom:14}}><p style={{margin:"0 0 10px",fontWeight:800,color:"#065F46",fontSize:15}}>💚 做好事！點我加分</p><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>{(data.bonusActions||[]).map(a=>(<button key={a.id} onClick={()=>doPoint(a.points,a.emoji,a.label,data)} style={{background:"white",border:"2px solid #D1FAE5",borderRadius:18,padding:"12px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,textAlign:"left",boxShadow:"0 2px 8px rgba(16,185,129,.1)"}}><span style={{fontSize:28}}>{a.emoji}</span><div><p style={{margin:0,fontSize:13,fontWeight:700,color:"#065F46"}}>{a.label}</p><p style={{margin:0,fontSize:12,color:"#10B981",fontWeight:800}}>+{a.points} 分</p></div></button>))}</div></div>
-        <div style={{marginBottom:14}}><p style={{margin:"0 0 10px",fontWeight:800,color:"#991B1B",fontSize:15}}>❤️‍🔥 做壞事就扣分喔！</p><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>{(data.penaltyActions||[]).map(a=>(<button key={a.id} onClick={()=>setConfirm(a)} style={{background:"white",border:"2px solid #FEE2E2",borderRadius:18,padding:"12px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,textAlign:"left",boxShadow:"0 2px 8px rgba(239,68,68,.08)"}}><span style={{fontSize:28}}>{a.emoji}</span><div><p style={{margin:0,fontSize:13,fontWeight:700,color:"#991B1B"}}>{a.label}</p><p style={{margin:0,fontSize:12,color:"#EF4444",fontWeight:800}}>-{a.points} 分</p></div></button>))}</div></div>
-        {(data.log||[]).length>0&&(<div style={{background:"white",borderRadius:20,padding:"14px",border:"1px solid #F3F4F6"}}><p style={{margin:"0 0 8px",fontWeight:700,color:"#374151",fontSize:13}}>📝 最近記錄</p>{(data.log||[]).slice(0,5).map(l=>(<div key={l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid #F9FAFB"}}><span style={{fontSize:15}}>{l.emoji}</span><div style={{flex:1}}><span style={{fontSize:12,color:"#6B7280"}}>{l.label}</span>{l.user&&<span style={{fontSize:11,color:"#A78BFA",marginLeft:4}}>· {l.user}</span>}</div><span style={{fontSize:11,color:"#E5E7EB",marginRight:4}}>{l.time}</span><span style={{fontWeight:700,fontSize:12,color:l.delta>0?"#10B981":"#EF4444"}}>{l.delta>0?"+":""}{l.delta}</span></div>))}</div>)}
-      </div>
-    </div>
-  );
+function enterApp(user) {
+  $('#loginView').classList.add('hidden');
+  $('#appView').classList.remove('hidden');
+  $('#whoAmI').textContent = user.email;
+  unsubs.push(onSnapshot(collection(db, 'cost_projects'), snap => {
+    projects = snap.docs.map(d => ({ id: d.id, ...d.data() })); render();
+  }, handleErr));
+  unsubs.push(onSnapshot(collection(db, 'cost_entries'), snap => {
+    entries = snap.docs.map(d => ({ id: d.id, ...d.data() })); render();
+  }, handleErr));
+  unsubs.push(onSnapshot(collection(db, NOTICES_COLLECTION), snap => {
+    notices = new Map(snap.docs.map(d => [d.id, { id: d.id, ...d.data() }])); render();
+  }, err => { console.error(err); toast('讀取工作通告失敗', true); }));
+  unsubs.push(onSnapshot(doc(db, ...APP_CONFIG_PATH), snap => {
+    const list = snap.data()?.allTypes;
+    if (Array.isArray(list) && list.length) { tradeTypes = list.map(t => ({ name: t.name, color: t.color || '#8a8790' })); render(); }
+  }, err => console.error(err)));
+  resetIdle();
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+function leaveApp() {
+  unsubs.forEach(u => u()); unsubs = [];
+  projects = []; entries = []; notices = new Map(); view = 'list'; currentProjectId = null;
+  $('#main').innerHTML = '';
+  document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+  $('#appView').classList.add('hidden');
+  $('#loginView').classList.remove('hidden');
+  clearTimeout(idleTimer);
+}
+
+function handleErr(err) {
+  console.error(err);
+  if (err?.code === 'permission-denied') {
+    signOut(auth);
+    $('#loginMsg').textContent = '此帳號沒有成本資料的存取權限。';
+  } else {
+    toast('操作失敗：' + (err?.code || err?.message || err), true);
+  }
+}
+
+let idleTimer;
+function resetIdle() {
+  clearTimeout(idleTimer);
+  if (!auth.currentUser) return;
+  idleTimer = setTimeout(() => {
+    signOut(auth);
+    $('#loginMsg').textContent = `閒置超過 ${IDLE_MINUTES} 分鐘，已自動登出。`;
+  }, IDLE_MINUTES * 60000);
+}
+['click', 'keydown', 'touchstart', 'scroll'].forEach(ev => document.addEventListener(ev, resetIdle, { passive: true }));
+
+/* ===== 計算 ===== */
+function summarize(pid) {
+  const es = entries.filter(e => e.projectId === pid);
+  const s = { est: 0, inv: 0, paid: 0, byTrade: {}, count: es.length };
+  for (const e of es) {
+    const v = taxed(e);
+    const b = s.byTrade[e.trade] ||= { est: 0, inv: 0, paid: 0 };
+    s.est += v; b.est += v;
+    if (e.status !== '報價') { s.inv += v; b.inv += v; }
+    if (e.status === '已付款') { s.paid += v; b.paid += v; }
+  }
+  return s;
+}
+
+function slotChanges(e, s) {
+  if (!e.slotSnap || !s) return [];
+  const now = snapOf(s), was = e.slotSnap, ch = [];
+  if (was.type !== now.type) ch.push(`工種 ${was.type} → ${now.type}`);
+  if (was.date !== now.date || (was.endDate || '') !== now.endDate) ch.push(`日期 ${range(was)} → ${range(now)}`);
+  if (was.desc !== now.desc) ch.push('工作內容已修改');
+  return ch;
+}
+
+/* 專案與通告的對照狀態 */
+function linkage(p) {
+  const n = p?.noticeId ? notices.get(p.noticeId) : null;
+  if (!n) return null;
+  const slots = (Array.isArray(n.data) ? n.data : []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.order ?? 0) - (b.order ?? 0));
+  const es = entries.filter(e => e.projectId === p.id);
+  const bySlot = {};
+  es.forEach(e => { if (e.slotId != null) (bySlot[e.slotId] ||= []).push(e); });
+  const ignored = new Set(p.ignoredSlots || []);
+  const ids = new Set(slots.map(s => s.id));
+  let missing = 0; const changedEntries = [];
+  slots.forEach(s => {
+    const le = bySlot[s.id] || [];
+    if (!le.length && !ignored.has(s.id)) missing++;
+    le.forEach(e => { if (slotChanges(e, s).length) changedEntries.push(e); });
+  });
+  const orphans = es.filter(e => e.slotId != null && !ids.has(e.slotId));
+  return { n, slots, bySlot, ignored, missing, changedEntries, orphans, slotById: id => slots.find(s => s.id === id) };
+}
+const noticeTitle = n => n?.headerCfg?.title || '（未命名通告）';
+
+function rulerHTML(budget, s) {
+  const max = Math.max(budget, s.est, 1);
+  const pct = v => (v / max * 100).toFixed(2) + '%';
+  const over = budget > 0 && s.est > budget;
+  return `<div class="ruler${over ? ' over' : ''}" title="預算 ${fmt(budget)}／預估 ${fmt(s.est)}">
+    <div class="fill f-quote" style="width:${pct(s.est)}"></div>
+    <div class="fill f-invoice" style="width:${pct(s.inv)}"></div>
+    <div class="fill f-paid" style="width:${pct(s.paid)}"></div>
+    ${budget > 0 ? `<div class="budget-mark" style="left:calc(${pct(budget)} - 1px)"></div>` : ''}
+  </div>`;
+}
+const legendHTML = `<div class="legend"><span><i style="background:var(--paid)"></i>已付款</span><span><i style="background:var(--invoice)"></i>已請款</span><span><i style="background:var(--quote)"></i>報價</span><span><i style="background:var(--ink);width:2px"></i>預算線</span></div>`;
+
+/* ===== 畫面 ===== */
+function render() {
+  const a = document.activeElement, id = a?.id, pos = a?.selectionStart;
+  view === 'detail' ? renderDetail() : renderList();
+  if (id && $('#main').contains(document.getElementById(id))) {
+    const el = document.getElementById(id); el.focus();
+    try { if (pos != null) el.setSelectionRange(pos, pos); } catch {}
+  }
+}
+
+/* 專案顯示用：連結通告時，名稱與狀態跟隨通告 */
+const projName = p => { const n = p.noticeId && notices.get(p.noticeId); return n ? noticeTitle(n) : p.name; };
+const projStatus = p => { const n = p.noticeId && notices.get(p.noticeId); return n ? (n.status === 'done' ? '已結案' : '進行中') : (p.status || '進行中'); };
+const noticeSort = (a, b) => {
+  const ao = a.noticeOrder, bo = b.noticeOrder;
+  if (ao != null && bo != null) return ao - bo;
+  if (ao != null) return -1; if (bo != null) return 1;
+  return ts(b.updatedAt) - ts(a.updatedAt);
+};
+
+/* 列表項目：通告首頁的每一張通告 + 沒有連結通告的成本專案 */
+function listItems() {
+  const byNotice = new Map(projects.filter(p => p.noticeId).map(p => [p.noticeId, p]));
+  const ns = [...notices.values()].sort(noticeSort);
+  const items = [
+    ...ns.filter(n => n.status !== 'done').map(n => ({ n, p: byNotice.get(n.id), status: '進行中' })),
+    ...ns.filter(n => n.status === 'done').map(n => ({ n, p: byNotice.get(n.id), status: '已結案' })),
+  ];
+  projects.filter(p => !p.noticeId || !notices.has(p.noticeId))
+    .sort((a, b) => ts(b.createdAt) - ts(a.createdAt))
+    .forEach(p => items.push({ n: null, p, status: p.status || '進行中' }));
+  return items;
+}
+
+function renderList() {
+  const items = listItems();
+  const activeP = items.filter(i => i.p && i.status !== '已結案').map(i => i.p);
+  let tb = 0, te = 0, tp = 0;
+  activeP.forEach(p => { const s = summarize(p.id); tb += Number(p.budget) || 0; te += s.est; tp += s.paid; });
+  const shown = items.filter(i => listFilter === '全部' || i.status === listFilter);
+
+  const rows = shown.map(({ n, p, status }) => {
+    const h = n?.headerCfg || {};
+    const place = n ? [h.venue, h.date].filter(Boolean).map(esc).join('｜') : '';
+    const badge = `<span class="badge${status === '已結案' ? ' closed' : ''}">${status}</span>`;
+    if (!p) {
+      const cnt = Array.isArray(n.data) ? n.data.length : 0;
+      return `<button class="prow" data-action="open-notice" data-nid="${esc(n.id)}">
+        <div><div class="pname">${esc(noticeTitle(n))}${badge}</div><div class="psub">${place || '&nbsp;'}</div></div>
+        <div><div class="psub">${cnt} 筆工作安排｜尚未開始記錄成本</div></div>
+        <div class="pfig"><span class="btn sm">開始記錄成本</span></div>
+      </button>`;
+    }
+    const s = summarize(p.id), budget = Number(p.budget) || 0, diff = budget - s.est, L = linkage(p);
+    const sub = [];
+    if (place) sub.push(place);
+    sub.push(`${s.count} 筆成本`);
+    if (L) {
+      if (L.missing) sub.push(`<b style="color:#b26a00">未建立成本 ${L.missing} 項</b>`);
+      if (L.changedEntries.length + L.orphans.length) sub.push(`<b style="color:var(--over)">通告異動 ${L.changedEntries.length + L.orphans.length} 筆</b>`);
+    } else if (p.noticeId) sub.push('<b style="color:var(--over)">對應通告已刪除</b>');
+    return `<button class="prow" data-action="open-project" data-id="${esc(p.id)}">
+      <div>
+        <div class="pname">${esc(projName(p))}${badge}</div>
+        <div class="psub">${sub.join('｜')}</div>
+      </div>
+      <div>
+        ${rulerHTML(budget, s)}
+        <div class="pnums num"><span>已付 ${fmt(s.paid)}</span><span>預估 ${fmt(s.est)} / 預算 ${budget ? fmt(budget) : '未設定'}</span></div>
+      </div>
+      <div class="pfig num">
+        ${budget ? `<strong class="${diff < 0 ? 'neg' : 'pos'}">${diff < 0 ? '超支 ' : ''}${fmt(Math.abs(diff))}</strong><small>${diff < 0 ? '超出預算' : '預算餘額'}</small>` : `<strong>${fmt(s.est)}</strong><small>預估成本</small>`}
+      </div>
+    </button>`;
+  }).join('');
+
+  $('#main').innerHTML = `
+    <div class="overview num">
+      <div><span>進行中專案</span><strong>${items.filter(i => i.status !== '已結案').length}</strong></div>
+      <div><span>進行中總預算</span><strong>${fmt(tb)}</strong></div>
+      <div><span>進行中預估成本</span><strong class="${te > tb && tb > 0 ? 'neg' : ''}">${fmt(te)}</strong></div>
+      <div><span>進行中已付款</span><strong>${fmt(tp)}</strong></div>
+    </div>
+    <div class="bar-head">
+      <h2>專案</h2>
+      <div class="seg">${['進行中', '已結案', '全部'].map(f => `<button data-action="list-filter" data-f="${f}" class="${f === listFilter ? 'on' : ''}">${f}</button>`).join('')}</div>
+      <button class="btn" data-action="export-excel">匯出 Excel</button>
+      <button class="btn primary" data-action="new-project">新增專案</button>
+    </div>
+    <div class="plist">${rows || `<div class="empty">${items.length ? '這個分類沒有專案。' : '通告系統還沒有任何通告。'}</div>`}</div>
+    ${shown.some(i => i.p) ? legendHTML : ''}`;
+}
+
+/* 點選尚未記錄成本的通告：自動建立對應的成本專案 */
+let creatingFor = null;
+async function openNotice(nid) {
+  const exist = projects.find(p => p.noticeId === nid);
+  if (exist) return openProject(exist.id);
+  if (creatingFor) return;
+  const n = notices.get(nid); if (!n) return;
+  creatingFor = nid;
+  try {
+    const ref = await addDoc(collection(db, 'cost_projects'), {
+      name: noticeTitle(n), status: n.status === 'done' ? '已結案' : '進行中', budget: 0, budgetByTrade: {},
+      noticeId: nid, noticeRef: noticeTitle(n), note: '', ignoredSlots: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+    });
+    openProject(ref.id);
+  } catch (err) { handleErr(err); }
+  finally { creatingFor = null; }
+}
+function openProject(id) {
+  currentProjectId = id; view = 'detail'; slotFilter = 'all'; entryFilter = { trade: '', status: '', q: '' };
+  render(); window.scrollTo(0, 0);
+}
+
+function entryChip(e) {
+  return `<button class="echip" data-action="edit-entry" data-id="${esc(e.id)}"><span>${esc(e.vendor || '未填廠商')}</span><b class="num">${fmt(taxed(e))}</b><span class="st st-${esc(e.status)}">${esc(e.status)}</span></button>`;
+}
+
+function slotSectionHTML(p, L) {
+  const total = L.slots.length, linked = L.slots.filter(s => (L.bySlot[s.id] || []).length).length;
+  const chg = L.changedEntries.length + L.orphans.length;
+  const show = s => {
+    const le = L.bySlot[s.id] || [];
+    if (slotFilter === 'missing') return !le.length && !L.ignored.has(s.id);
+    if (slotFilter === 'changed') return le.some(e => slotChanges(e, s).length);
+    return true;
+  };
+  const order = tradeNames();
+  const groups = {};
+  L.slots.filter(show).forEach(s => (groups[s.type || '其他'] ||= []).push(s));
+  const gkeys = Object.keys(groups).sort((a, b) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999));
+
+  const rows = gkeys.map(t => {
+    const ss = groups[t];
+    const sub = ss.reduce((a, s) => a + (L.bySlot[s.id] || []).reduce((x, e) => x + taxed(e), 0), 0);
+    return `<div class="sgroup-h"><span class="dot" style="background:${tradeColor(t)}"></span>${esc(t)}<small>${ss.length} 項｜成本 ${fmt(sub)}</small></div>` +
+      ss.map(s => {
+        const le = L.bySlot[s.id] || [], ign = L.ignored.has(s.id), miss = !le.length && !ign;
+        const desc = plain(s.desc) || '（無工作內容）';
+        const changes = le.map(e => {
+          const c = slotChanges(e, s); if (!c.length) return '';
+          return `<div class="chg"><span>通告已異動（${esc(e.vendor || '未填廠商')}）：${esc(c.join('、'))}</span>
+            <button class="btn sm" data-action="apply-change" data-id="${esc(e.id)}">套用到成本</button>
+            <button class="btn ghost sm" data-action="ignore-change" data-id="${esc(e.id)}">保留原本</button></div>`;
+        }).join('');
+        return `<div class="srow${miss ? ' missing' : ''}${ign ? ' ignored' : ''}">
+          <div class="sdate num">${esc(range(s))}${s.start ? `<br>${esc(s.start)}${s.end ? '–' + esc(s.end) : ''}` : ''}</div>
+          <div>
+            <div class="sdesc">${esc(desc.length > 120 ? desc.slice(0, 120) + '…' : desc)}</div>
+            ${(s.assignees || []).length ? `<div class="smeta">負責：${esc(s.assignees.join('、'))}</div>` : ''}
+            ${le.length ? `<div class="echips">${le.map(entryChip).join('')}</div>` : ''}
+            ${miss ? '<div class="need">尚未建立成本</div>' : ''}${ign ? '<div class="smeta">已標記不計成本</div>' : ''}
+            ${changes}
+          </div>
+          <div class="sacts">
+            ${ign ? '' : `<button class="btn sm" data-action="entry-from-slot" data-slot="${esc(s.id)}">建立成本</button>`}
+            ${le.length ? '' : `<button class="btn ghost sm" data-action="toggle-ignore" data-slot="${esc(s.id)}">${ign ? '恢復計算' : '不計成本'}</button>`}
+          </div>
+        </div>`;
+      }).join('');
+  }).join('');
+
+  const orphanHTML = L.orphans.length && slotFilter !== 'missing' ? `<div class="sgroup-h"><span class="dot" style="background:var(--over)"></span>通告中已刪除的工項<small>${L.orphans.length} 筆成本</small></div>` +
+    L.orphans.map(e => `<div class="srow"><div class="sdate num">${esc(e.slotSnap ? range(e.slotSnap) : '')}</div>
+      <div><div class="sdesc">${esc(e.slotSnap?.desc || e.description || '')}</div><div class="echips">${entryChip(e)}</div>
+      <div class="chg"><span>這個工項已從通告刪除，請確認這筆成本是否還需要。</span></div></div>
+      <div class="sacts"><button class="btn sm" data-action="unlink-entry" data-id="${esc(e.id)}">保留並取消連結</button><button class="btn ghost sm" data-action="delete-entry" data-id="${esc(e.id)}">刪除成本</button></div></div>`).join('') : '';
+
+  return `<h3 class="sec">通告工項對照</h3>
+    <div class="link-sum">
+      <button class="chip${slotFilter === 'all' ? ' on' : ''}" data-action="slot-filter" data-f="all">全部工項 <b class="num">${total}</b>（已建立 ${linked}）</button>
+      <button class="chip warn${slotFilter === 'missing' ? ' on' : ''}" data-action="slot-filter" data-f="missing">未建立成本 <b class="num">${L.missing}</b></button>
+      <button class="chip chg${slotFilter === 'changed' ? ' on' : ''}" data-action="slot-filter" data-f="changed">通告異動 <b class="num">${chg}</b></button>
+      ${L.changedEntries.length > 1 ? `<button class="btn sm" data-action="apply-all">全部套用異動</button>` : ''}
+    </div>
+    <div class="slist">${rows + orphanHTML || `<div class="empty">${total ? '沒有符合條件的工項。' : '這張通告還沒有工作項目。'}</div>`}</div>`;
+}
+
+function renderDetail() {
+  const p = projects.find(x => x.id === currentProjectId);
+  if (!p) { view = 'list'; renderList(); return; }
+  const s = summarize(p.id), budget = Number(p.budget) || 0, bt = p.budgetByTrade || {};
+  const remain = budget - s.est, L = linkage(p);
+  const tradesUsed = tradeNames().filter(t => bt[t] || s.byTrade[t]);
+  [...Object.keys(bt), ...Object.keys(s.byTrade)].forEach(t => { if (!tradesUsed.includes(t)) tradesUsed.push(t); });
+
+  const tradeRows = tradesUsed.map(t => {
+    const b = Number(bt[t]) || 0, x = s.byTrade[t] || { est: 0, inv: 0, paid: 0 }, d = b - x.est;
+    return `<tr><td><span class="dot" style="background:${tradeColor(t)}"></span>${esc(t)}</td>
+      <td>${b ? fmt(b) : '—'}</td><td>${fmt(x.est)}</td><td>${fmt(x.inv)}</td><td>${fmt(x.paid)}</td>
+      <td class="${b && d < 0 ? 'neg' : ''}">${b ? fmt(d) : '—'}</td></tr>`;
+  }).join('');
+  const sumBt = Object.values(bt).reduce((a, v) => a + (Number(v) || 0), 0);
+  const noticeLine = L ? [L.n.headerCfg?.venue, L.n.headerCfg?.date].filter(Boolean).map(esc).join('｜') || '已連結工作通告' : p.noticeId ? '<span class="neg">對應的通告已被刪除</span>' : p.noticeRef ? '對應通告：' + esc(p.noticeRef) : '未連結工作通告';
+
+  $('#main').innerHTML = `
+    <div class="crumb"><button class="btn ghost sm" data-action="back">← 回到專案列表</button></div>
+    <div class="dhead">
+      <div class="t"><h2>${esc(projName(p))}<span class="badge${projStatus(p) === '已結案' ? ' closed' : ''}">${projStatus(p)}</span></h2>
+        <div class="sub">${noticeLine}${p.note ? '｜' + esc(p.note) : ''}</div></div>
+      <div class="acts">
+        <button class="btn" data-action="export-excel" data-pid="${esc(p.id)}">匯出 Excel</button>
+        <button class="btn" data-action="edit-project">編輯專案</button>
+        <button class="btn danger" data-action="delete-project">刪除</button>
+        <button class="btn primary" data-action="new-entry">新增成本項目</button>
+      </div>
+    </div>
+    <div class="dsum">
+      <div class="figs num">
+        <div><span>預算</span><strong>${budget ? fmt(budget) : '未設定'}</strong></div>
+        <div><span>預估成本</span><strong>${fmt(s.est)}</strong></div>
+        <div><span>已請款</span><strong>${fmt(s.inv)}</strong></div>
+        <div><span>已付款</span><strong>${fmt(s.paid)}</strong></div>
+        <div><span>${remain < 0 ? '超出預算' : '預算餘額'}</span><strong class="${budget ? (remain < 0 ? 'neg' : 'pos') : ''}">${budget ? fmt(Math.abs(remain)) : '—'}</strong></div>
+      </div>
+      ${rulerHTML(budget, s)}
+      ${legendHTML}
+    </div>
+    ${tradesUsed.length ? `<h3 class="sec">工種分析（含稅）</h3>
+    <div class="tbl-wrap"><table class="num">
+      <thead><tr><th>工種</th><th>預算</th><th>預估</th><th>已請款</th><th>已付款</th><th>預算 − 預估</th></tr></thead>
+      <tbody>${tradeRows}
+      <tr class="total"><td>合計</td><td>${sumBt ? fmt(sumBt) : '—'}</td><td>${fmt(s.est)}</td><td>${fmt(s.inv)}</td><td>${fmt(s.paid)}</td><td>${sumBt ? fmt(sumBt - s.est) : '—'}</td></tr>
+      </tbody></table></div>` : ''}
+    ${L ? slotSectionHTML(p, L) : ''}
+    <h3 class="sec">全部成本項目</h3>
+    <div class="filters">
+      <select id="fTrade" aria-label="工種篩選"><option value="">全部工種</option>${tradeNames().map(t => `<option ${entryFilter.trade === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+      <select id="fStatus" aria-label="進度篩選"><option value="">全部進度</option>${['報價', '已請款', '已付款'].map(t => `<option ${entryFilter.status === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <input id="fQ" placeholder="搜尋廠商或內容" value="${esc(entryFilter.q)}">
+    </div>
+    <div class="elist" id="elist"></div>`;
+
+  $('#fTrade').onchange = e => { entryFilter.trade = e.target.value; renderEntries(); };
+  $('#fStatus').onchange = e => { entryFilter.status = e.target.value; renderEntries(); };
+  $('#fQ').oninput = e => { entryFilter.q = e.target.value; renderEntries(); };
+  renderEntries();
+}
+
+function renderEntries() {
+  const p = projects.find(x => x.id === currentProjectId), L = linkage(p);
+  const q = entryFilter.q.trim().toLowerCase();
+  const list = entries
+    .filter(e => e.projectId === currentProjectId)
+    .filter(e => !entryFilter.trade || e.trade === entryFilter.trade)
+    .filter(e => !entryFilter.status || e.status === entryFilter.status)
+    .filter(e => !q || (e.vendor || '').toLowerCase().includes(q) || (e.description || '').toLowerCase().includes(q))
+    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || ts(b.createdAt) - ts(a.createdAt));
+  const total = list.reduce((a, e) => a + taxed(e), 0);
+
+  $('#elist').innerHTML = list.length ? list.map(e => {
+    const link = safeLink(e.fileLink);
+    let linkTag = '';
+    if (L && e.slotId != null) {
+      const s = L.slotById(e.slotId);
+      linkTag = !s ? '<span class="tag chgtag">通告已刪除此工項</span>'
+        : slotChanges(e, s).length ? '<span class="tag chgtag">通告有異動</span>' : '<span class="tag linked">已對應通告</span>';
+    }
+    return `<div class="erow">
+      <div class="date num">${esc(e.date || '')}</div>
+      <div class="main">
+        <div class="vendor">${esc(e.vendor || '（未填廠商）')}</div>
+        ${e.description ? `<div class="desc" title="${esc(e.description)}">${esc(e.description)}</div>` : ''}
+        <div class="tags">
+          <span class="tag trade" style="background:${tradeColor(e.trade)}">${esc(e.trade)}</span>
+          <span class="st st-${esc(e.status)}">${esc(e.status)}</span>
+          ${e.isOutsource ? '<span class="tag out">外包</span>' : ''}${linkTag}
+        </div>
+      </div>
+      <div class="amt num"><strong>${fmt(taxed(e))}</strong><small>${e.taxIncluded ? '含稅' : '未稅 ' + fmt(e.amount)}</small></div>
+      <div class="ops">
+        ${link ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">檔案</a>` : ''}
+        <button class="btn ghost sm" data-action="edit-entry" data-id="${esc(e.id)}">編輯</button>
+        <button class="btn ghost sm" data-action="delete-entry" data-id="${esc(e.id)}">刪除</button>
+      </div>
+    </div>`;
+  }).join('') + `<div class="erow" style="background:#faf9fc"><div></div><div class="main"><strong>篩選結果 ${list.length} 筆</strong></div><div class="amt num"><strong>${fmt(total)}</strong><small>含稅合計</small></div><div></div></div>`
+    : `<div class="empty">${entries.some(e => e.projectId === currentProjectId) ? '沒有符合篩選條件的項目。' : '這個專案還沒有成本項目。<br><button class="btn primary" data-action="new-entry">新增成本項目</button>'}</div>`;
+}
+
+/* ===== 專案表單 ===== */
+function fillNoticeSelect(selected) {
+  const list = [...notices.values()].sort((a, b) => (a.status === 'done') - (b.status === 'done') || ts(b.updatedAt) - ts(a.updatedAt));
+  const usedBy = new Map(projects.filter(p => p.noticeId && p.id !== editingProjectId).map(p => [p.noticeId, p.name]));
+  $('#pNoticeId').innerHTML = '<option value="">不連結通告</option>' + list.map(n =>
+    `<option value="${esc(n.id)}" ${n.id === selected ? 'selected' : ''}>${esc(noticeTitle(n))}${n.status === 'done' ? '（已結案）' : ''}${usedBy.has(n.id) ? '（已有成本專案）' : ''}</option>`).join('');
+}
+function syncModalToNotice() {
+  const n = notices.get($('#pNoticeId').value);
+  $('#pName').disabled = $('#pStatus').disabled = !!n;
+  if (n) { $('#pName').value = noticeTitle(n); $('#pStatus').value = n.status === 'done' ? '已結案' : '進行中'; }
+  $('#pFollow').classList.toggle('hidden', !n);
+}
+$('#pNoticeId').addEventListener('change', syncModalToNotice);
+$('#pTradeGrid').addEventListener('input', updateTradeSum);
+function updateTradeSum() {
+  let sum = 0; document.querySelectorAll('#pTradeGrid input').forEach(i => sum += Number(i.value) || 0);
+  $('#pTradeSum').textContent = '分項合計：' + fmt(sum);
+}
+
+function openProjectModal(p) {
+  editingProjectId = p?.id || null;
+  $('#pmTitle').textContent = p ? '編輯專案' : '新增專案';
+  $('#pName').value = p?.name || '';
+  $('#pStatus').value = p?.status || '進行中';
+  $('#pBudget').value = p?.budget || '';
+  $('#pNote').value = p?.note || '';
+  fillNoticeSelect(p?.noticeId || '');
+  syncModalToNotice();
+  const bt = p?.budgetByTrade || {};
+  const names = tradeNames(); Object.keys(bt).forEach(t => { if (!names.includes(t)) names.push(t); });
+  $('#pTradeGrid').innerHTML = names.map(t => `<label>${esc(t)}<input type="number" min="0" inputmode="numeric" data-trade="${esc(t)}" value="${bt[t] || ''}"></label>`).join('');
+  $('#pTradeDetails').open = Object.keys(bt).length > 0;
+  updateTradeSum();
+  $('#projectModal').classList.remove('hidden');
+  $('#pName').focus();
+}
+
+async function saveProject() {
+  const name = $('#pName').value.trim();
+  if (!name) return toast('請輸入專案名稱', true);
+  const byTrade = {};
+  document.querySelectorAll('#pTradeGrid input').forEach(i => { const v = Number(i.value); if (v > 0) byTrade[i.dataset.trade] = v; });
+  let budget = Number($('#pBudget').value) || 0;
+  if (!budget) budget = Object.values(byTrade).reduce((a, b) => a + b, 0);
+  const nid = $('#pNoticeId').value, n = notices.get(nid);
+  const data = { name, status: $('#pStatus').value, budget, budgetByTrade: byTrade,
+    noticeId: nid || null, noticeRef: n ? noticeTitle(n) : '', note: $('#pNote').value.trim(), updatedAt: serverTimestamp() };
+  try {
+    if (editingProjectId) await updateDoc(doc(db, 'cost_projects', editingProjectId), data);
+    else {
+      data.createdAt = serverTimestamp(); data.ignoredSlots = [];
+      const ref = await addDoc(collection(db, 'cost_projects'), data);
+      currentProjectId = ref.id; view = 'detail'; slotFilter = 'all';
+    }
+    $('#projectModal').classList.add('hidden');
+    render(); toast('專案已儲存');
+  } catch (err) { handleErr(err); }
+}
+
+async function deleteProject() {
+  const p = projects.find(x => x.id === currentProjectId); if (!p) return;
+  const its = entries.filter(e => e.projectId === p.id);
+  if (!confirm(`確定刪除「${p.name}」？\n其中 ${its.length} 筆成本項目也會一併刪除，且無法復原。\n（工作通告本身不受影響）`)) return;
+  try {
+    const batch = writeBatch(db);
+    its.forEach(e => batch.delete(doc(db, 'cost_entries', e.id)));
+    batch.delete(doc(db, 'cost_projects', p.id));
+    await batch.commit();
+    view = 'list'; currentProjectId = null; render();
+    toast('專案已刪除');
+  } catch (err) { handleErr(err); }
+}
+
+async function toggleIgnore(slotId) {
+  const p = projects.find(x => x.id === currentProjectId); if (!p) return;
+  const on = (p.ignoredSlots || []).includes(slotId);
+  try { await updateDoc(doc(db, 'cost_projects', p.id), { ignoredSlots: on ? arrayRemove(slotId) : arrayUnion(slotId) }); }
+  catch (err) { handleErr(err); }
+}
+
+/* ===== 成本項目表單 ===== */
+let editingSlotSnap = null;
+function fillSlotSelect(L, selected) {
+  $('#eSlotField').classList.toggle('hidden', !L);
+  if (!L) { $('#eSlot').innerHTML = ''; return; }
+  $('#eSlot').innerHTML = '<option value="">不對應通告工項</option>' + L.slots.map(s => {
+    const d = plain(s.desc);
+    return `<option value="${esc(s.id)}" ${s.id === selected ? 'selected' : ''}>${esc(range(s))}｜${esc(s.type)}｜${esc(d.length > 30 ? d.slice(0, 30) + '…' : d)}</option>`;
+  }).join('');
+}
+function fillTradeSelect(sel) {
+  const names = tradeNames(); if (sel && !names.includes(sel)) names.push(sel);
+  $('#eTrade').innerHTML = names.map(t => `<option ${t === sel ? 'selected' : ''}>${esc(t)}</option>`).join('');
+}
+function applySlotToForm(s) {
+  fillTradeSelect(s.type);
+  $('#eDate').value = s.date || today();
+  if (!$('#eDesc').value.trim()) $('#eDesc').value = plain(s.desc).slice(0, 100);
+  $('#eVendor').placeholder = (s.assignees || []).length ? '負責：' + s.assignees.join('、') : '例：XX木作';
+}
+$('#eSlot').addEventListener('change', e => {
+  const L = linkage(projects.find(x => x.id === currentProjectId));
+  const s = L?.slotById(Number(e.target.value));
+  if (s && !editingEntryId) applySlotToForm(s);
+});
+
+function openEntryModal(e, slot) {
+  editingEntryId = e?.id || null;
+  editingSlotSnap = e?.slotSnap || null;
+  const L = linkage(projects.find(x => x.id === currentProjectId));
+  $('#emTitle').textContent = e ? '編輯成本項目' : '新增成本項目';
+  $('#eDate').value = e?.date || today();
+  fillTradeSelect(e?.trade || entryFilter.trade || tradeNames()[0]);
+  $('#eVendor').value = e?.vendor || '';
+  $('#eVendor').placeholder = '例：XX木作';
+  $('#eDesc').value = e?.description || '';
+  $('#eAmount').value = e?.amount ?? '';
+  $('#eTax').value = e ? (e.taxIncluded ? 'inc' : 'exc') : 'exc';
+  $('#eStatus').value = e?.status || '報價';
+  $('#eOut').checked = !!e?.isOutsource;
+  $('#eLink').value = e?.fileLink || '';
+  $('#eNote').value = e?.note || '';
+  fillSlotSelect(L, slot ? slot.id : e?.slotId ?? null);
+  if (slot) applySlotToForm(slot);
+  const vendors = [...new Set(entries.map(x => x.vendor).filter(Boolean))].sort();
+  $('#vendorList').innerHTML = vendors.map(v => `<option value="${esc(v)}">`).join('');
+  $('#entryModal').classList.remove('hidden');
+  $('#eVendor').focus();
+}
+
+async function saveEntry() {
+  const raw = $('#eAmount').value.trim();
+  const amount = Number(raw);
+  if (raw === '' || !Number.isFinite(amount)) return toast('請輸入金額', true);
+  const link = $('#eLink').value.trim();
+  if (link && !safeLink(link)) return toast('檔案連結必須以 https:// 開頭', true);
+  const L = linkage(projects.find(x => x.id === currentProjectId));
+  const sv = $('#eSlot').value; let slotId = L && sv !== '' ? Number(sv) : null;
+  const old = editingEntryId ? entries.find(x => x.id === editingEntryId) : null;
+  let slotSnap = null;
+  if (!L && old) { slotId = old.slotId ?? null; slotSnap = old.slotSnap ?? null; } // 通告暫時讀不到時，保留原本的連結
+  else if (slotId != null) {
+    // 沿用原本的快照，通告的後續異動才會繼續被標示；換了工項才重新記錄
+    slotSnap = old && old.slotId === slotId && editingSlotSnap ? editingSlotSnap : snapOf(L.slotById(slotId) || {});
+  }
+  const data = {
+    projectId: currentProjectId, date: $('#eDate').value || today(), trade: $('#eTrade').value,
+    vendor: $('#eVendor').value.trim(), description: $('#eDesc').value.trim(), amount,
+    taxIncluded: $('#eTax').value === 'inc', status: $('#eStatus').value, isOutsource: $('#eOut').checked,
+    fileLink: link, note: $('#eNote').value.trim(), slotId, slotSnap, updatedAt: serverTimestamp()
+  };
+  try {
+    if (editingEntryId) await updateDoc(doc(db, 'cost_entries', editingEntryId), data);
+    else { data.createdAt = serverTimestamp(); await addDoc(collection(db, 'cost_entries'), data); }
+    $('#entryModal').classList.add('hidden');
+    toast('項目已儲存');
+  } catch (err) { handleErr(err); }
+}
+
+async function deleteEntry(id) {
+  const e = entries.find(x => x.id === id); if (!e) return;
+  if (!confirm(`確定刪除「${e.vendor || ''} ${e.description || ''}」（${fmt(taxed(e))}）？`)) return;
+  try {
+    const batch = writeBatch(db); batch.delete(doc(db, 'cost_entries', id)); await batch.commit();
+    toast('項目已刪除');
+  } catch (err) { handleErr(err); }
+}
+
+/* ===== 通告異動處理 ===== */
+function changePayload(e, s) {
+  const now = snapOf(s);
+  const data = { trade: now.type, date: now.date, slotSnap: now, updatedAt: serverTimestamp() };
+  // 成本說明若仍是當初從通告帶入的文字，就一起更新；若已自行修改則保留
+  if ((e.description || '') === (e.slotSnap?.desc || '').slice(0, 100)) data.description = now.desc.slice(0, 100);
+  return data;
+}
+async function applyChange(id) {
+  const e = entries.find(x => x.id === id), L = linkage(projects.find(x => x.id === currentProjectId));
+  const s = L?.slotById(e?.slotId); if (!s) return;
+  try { await updateDoc(doc(db, 'cost_entries', id), changePayload(e, s)); toast('已套用通告異動'); }
+  catch (err) { handleErr(err); }
+}
+async function ignoreChange(id) {
+  const e = entries.find(x => x.id === id), L = linkage(projects.find(x => x.id === currentProjectId));
+  const s = L?.slotById(e?.slotId); if (!s) return;
+  try { await updateDoc(doc(db, 'cost_entries', id), { slotSnap: snapOf(s), updatedAt: serverTimestamp() }); toast('已保留原本的成本資料'); }
+  catch (err) { handleErr(err); }
+}
+async function applyAll() {
+  const L = linkage(projects.find(x => x.id === currentProjectId)); if (!L) return;
+  if (!confirm(`將 ${L.changedEntries.length} 筆成本的工種與日期更新為通告目前的內容？`)) return;
+  try {
+    const batch = writeBatch(db);
+    L.changedEntries.forEach(e => batch.update(doc(db, 'cost_entries', e.id), changePayload(e, L.slotById(e.slotId))));
+    await batch.commit(); toast('已全部套用');
+  } catch (err) { handleErr(err); }
+}
+async function unlinkEntry(id) {
+  try { await updateDoc(doc(db, 'cost_entries', id), { slotId: null, slotSnap: null, updatedAt: serverTimestamp() }); toast('已取消連結，成本保留'); }
+  catch (err) { handleErr(err); }
+}
+
+
+/* ===== 匯出 Excel ===== */
+let xlsxLoading = null;
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  return xlsxLoading ||= new Promise((ok, fail) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload = ok; sc.onerror = () => { xlsxLoading = null; fail(new Error('Excel 元件載入失敗')); };
+    document.head.appendChild(sc);
+  });
+}
+const stamp = () => today().replace(/-/g, '');
+const safeName = s => String(s).replace(/[\\/:*?"<>|]/g, '_').slice(0, 60);
+function sheet(rows, widths) {
+  const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ '': '（無資料）' }]);
+  if (widths) ws['!cols'] = widths.map(w => ({ wch: w }));
+  return ws;
+}
+function projectRow(p) {
+  const s = summarize(p.id), b = Number(p.budget) || 0, L = linkage(p), h = L?.n.headerCfg || {};
+  return { '專案': projName(p), '狀態': projStatus(p), '地點': h.venue || '', '期間': h.date || '',
+    '預算': b, '預估成本': s.est, '已請款': s.inv, '已付款': s.paid, '預算餘額': b ? b - s.est : '',
+    '成本筆數': s.count, '未建立成本工項': L ? L.missing : '', '通告異動待確認': L ? L.changedEntries.length + L.orphans.length : '' };
+}
+function entryRows(ps) {
+  const out = [];
+  ps.forEach(p => {
+    const L = linkage(p);
+    entries.filter(e => e.projectId === p.id).sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(e => {
+      const s = L && e.slotId != null ? L.slotById(e.slotId) : null;
+      out.push({ '專案': projName(p), '日期': e.date || '', '工種': e.trade || '', '廠商': e.vendor || '', '項目內容': e.description || '',
+        '金額': Number(e.amount) || 0, '稅別': e.taxIncluded ? '含稅' : '未稅', '含稅金額': taxed(e), '進度': e.status || '',
+        '外包': e.isOutsource ? '是' : '', '對應通告工項': s ? `${range(s)} ${plain(s.desc).slice(0, 40)}` : (e.slotId != null ? '（通告已刪除）' : ''),
+        '檔案連結': e.fileLink || '', '備註': e.note || '' });
+    });
+  });
+  return out;
+}
+function tradeRows(ps) {
+  const out = [];
+  ps.forEach(p => {
+    const s = summarize(p.id), bt = p.budgetByTrade || {};
+    const ts_ = [...new Set([...tradeNames().filter(t => bt[t] || s.byTrade[t]), ...Object.keys(bt), ...Object.keys(s.byTrade)])];
+    ts_.forEach(t => {
+      const b = Number(bt[t]) || 0, x = s.byTrade[t] || { est: 0, inv: 0, paid: 0 };
+      out.push({ '專案': projName(p), '工種': t, '預算': b || '', '預估': x.est, '已請款': x.inv, '已付款': x.paid, '預算−預估': b ? b - x.est : '' });
+    });
+  });
+  return out;
+}
+function slotRows(p) {
+  const L = linkage(p); if (!L) return null;
+  return L.slots.map(s => {
+    const le = L.bySlot[s.id] || [];
+    return { '日期': range(s), '工種': s.type || '', '工作內容': plain(s.desc), '負責': (s.assignees || []).join('、'),
+      '成本筆數': le.length, '成本金額（含稅）': le.reduce((a, e) => a + taxed(e), 0),
+      '狀態': le.length ? (le.some(e => slotChanges(e, s).length) ? '通告有異動' : '已建立') : (L.ignored.has(s.id) ? '不計成本' : '未建立成本') };
+  });
+}
+async function exportExcel(projectId) {
+  try {
+    await loadXLSX();
+    const ps = projectId ? projects.filter(p => p.id === projectId)
+      : listItems().filter(i => i.p && (listFilter === '全部' || i.status === listFilter)).map(i => i.p);
+    if (!ps.length) return toast('目前沒有可匯出的專案', true);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet(ps.map(projectRow), [28, 8, 22, 22, 12, 12, 12, 12, 12, 9, 13, 13]), '專案總表');
+    XLSX.utils.book_append_sheet(wb, sheet(tradeRows(ps), [28, 12, 12, 12, 12, 12, 12]), '工種統計');
+    XLSX.utils.book_append_sheet(wb, sheet(entryRows(ps), [28, 11, 10, 16, 30, 12, 6, 12, 8, 6, 30, 30, 20]), '成本明細');
+    if (projectId) { const sr = slotRows(ps[0]); if (sr) XLSX.utils.book_append_sheet(wb, sheet(sr, [14, 10, 40, 16, 9, 14, 11]), '通告工項對照'); }
+    const name = projectId ? `成本統計_${safeName(projName(ps[0]))}_${stamp()}.xlsx` : `成本統計_${listFilter}_${stamp()}.xlsx`;
+    XLSX.writeFile(wb, name);
+    toast('已匯出 Excel');
+  } catch (err) { console.error(err); toast('匯出失敗：' + err.message, true); }
+}
+
+/* ===== 備份：匯出 / 匯入（合併模式，同通告系統） ===== */
+const plainDoc = d => {
+  const o = {};
+  for (const [k, v] of Object.entries(d)) o[k] = v?.toDate ? v.toDate().toISOString() : v;
+  return o;
+};
+function exportBackup() {
+  const backup = { version: 1, system: 'cost-system', exportedAt: new Date().toISOString(),
+    projects: projects.map(plainDoc), entries: entries.map(plainDoc) };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `成本統計系統備份_${today()}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('已匯出備份');
+}
+async function commitInChunks(list, fn) {
+  for (let i = 0; i < list.length; i += 400) {
+    const batch = writeBatch(db);
+    list.slice(i, i + 400).forEach(x => fn(batch, x));
+    await batch.commit();
+  }
+}
+async function importBackup(ev) {
+  const file = ev.target.files[0]; ev.target.value = '';
+  if (!file) return;
+  let b;
+  try { b = JSON.parse(await file.text()); } catch { return alert('檔案格式錯誤，請選擇成本統計系統的備份 JSON 檔案'); }
+  if (b?.system !== 'cost-system' || !Array.isArray(b.projects) || !Array.isArray(b.entries)) return alert('這不是成本統計系統的備份檔，無法匯入');
+  const pIds = new Set(projects.map(p => p.id)), eIds = new Set(entries.map(e => e.id));
+  const newP = b.projects.filter(p => p.id && !pIds.has(p.id));
+  const newE = b.entries.filter(e => e.id && !eIds.has(e.id));
+  if (!confirm(`即將匯入備份（合併模式）：\n\n✅ 新增專案 ${newP.length} 筆、成本項目 ${newE.length} 筆\n⏭ 系統中已存在的資料 → 保留不動\n\n確定要繼續嗎？`)) return;
+  const clean = ({ id, createdAt, updatedAt, ...rest }) => ({ ...rest, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  try {
+    // 先寫專案，再寫成本項目（資料庫規則要求成本項目對應的專案必須已存在）
+    await commitInChunks(newP, (batch, p) => batch.set(doc(db, 'cost_projects', p.id), { budget: 0, ...clean(p), name: p.name || '未命名專案', budget: Number(p.budget) || 0 }));
+    const allP = new Set([...pIds, ...newP.map(p => p.id)]);
+    const okE = newE.filter(e => allP.has(e.projectId));
+    await commitInChunks(okE, (batch, e) => batch.set(doc(db, 'cost_entries', e.id), clean(e)));
+    alert(`匯入完成！\n✅ 新增專案 ${newP.length} 筆、成本項目 ${okE.length} 筆\n⏭ 跳過已存在的資料${newE.length - okE.length ? `\n⚠️ ${newE.length - okE.length} 筆成本找不到對應專案，未匯入` : ''}`);
+  } catch (err) {
+    console.error(err);
+    alert('匯入過程發生錯誤，部分資料可能未完成，請檢查後重試（' + (err.code || err.message) + '）');
+  }
+}
+$('#importFile').addEventListener('change', importBackup);
+
+/* ===== 事件 ===== */
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-action]'); if (!b) return;
+  const a = b.dataset.action;
+  if (a === 'logout') { signOut(auth); return; }
+  if (a === 'export-excel') exportExcel(b.dataset.pid || null);
+  if (a === 'export-backup') exportBackup();
+  if (a === 'import-backup') $('#importFile').click();
+  if (a === 'list-filter') { listFilter = b.dataset.f; renderList(); }
+  if (a === 'new-project') openProjectModal(null);
+  if (a === 'open-project') openProject(b.dataset.id);
+  if (a === 'open-notice') openNotice(b.dataset.nid);
+  if (a === 'back') { view = 'list'; currentProjectId = null; renderList(); }
+  if (a === 'edit-project') openProjectModal(projects.find(x => x.id === currentProjectId));
+  if (a === 'delete-project') deleteProject();
+  if (a === 'save-project') saveProject();
+  if (a === 'new-entry') openEntryModal(null);
+  if (a === 'edit-entry') openEntryModal(entries.find(x => x.id === b.dataset.id));
+  if (a === 'delete-entry') deleteEntry(b.dataset.id);
+  if (a === 'save-entry') saveEntry();
+  if (a === 'slot-filter') { slotFilter = b.dataset.f; renderDetail(); }
+  if (a === 'entry-from-slot') {
+    const L = linkage(projects.find(x => x.id === currentProjectId));
+    const s = L?.slotById(Number(b.dataset.slot)); if (s) openEntryModal(null, s);
+  }
+  if (a === 'toggle-ignore') toggleIgnore(Number(b.dataset.slot));
+  if (a === 'apply-change') applyChange(b.dataset.id);
+  if (a === 'ignore-change') ignoreChange(b.dataset.id);
+  if (a === 'apply-all') applyAll();
+  if (a === 'unlink-entry') unlinkEntry(b.dataset.id);
+  if (a === 'close-modal') $('#' + b.dataset.target).classList.add('hidden');
+});
+/* 視窗刻意不因點擊背景或 ESC 關閉（避免中文輸入法衝突），與其他系統一致 */
+
 </script>
 </body>
 </html>
